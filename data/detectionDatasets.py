@@ -61,12 +61,8 @@ def make_lists_ucf(rootpath, imgtype, split=1, use_bg=False, fulltest=False):
 
     train_action_counts = np.zeros(len(CLASSES['ucf24']), dtype=np.int32)
     test_action_counts = np.zeros(len(CLASSES['ucf24']), dtype=np.int32)
-
-    # ratios = np.asarray([1.15, 1.06, 1.30, 1.21, 1.06, 1.14, 2.24, 1.11, 1.11, 1.18, 2.03, 1.14, 1.14, 1.11, 2.04, 1.14, 1.12, 1.14, 1.14, 1.14, 1.15, 1.78, 1.09, 1.16])
-    # ratios = np.ones(len(CLASSES))
+    
     ratios = np.asarray([1.1,1.,4.7,1.4,1.,2.6,2.2,3.0,3.0,5.0,6.2,2.7,3.5,3.1,4.3,2.5,4.5,3.4,6.7,3.6,1.6,3.4,1.,4.3])
-    # # ratios *= tr_ratio
-    #ratios = np.ones_like(ratios) #uncomment this like to compute new ratios
 
     video_list = []
     numf_list = []
@@ -163,7 +159,6 @@ def make_lists_daly(rootpath, bg_step=40, use_bg=False, fulltest=False):
     # pdb.set_trace()
     train_action_counts = np.zeros(len(CLASSES['daly']), dtype=np.int32)
     test_action_counts = np.zeros(len(CLASSES['daly']), dtype=np.int32)
-
 
     video_list = []
     numf_list = []
@@ -293,17 +288,17 @@ def get_coco_classes(rootpath):
     anno_file = rootpath + 'instances_val2017.json'
     with open(anno_file, 'r') as f:
         obj = json.load(f)
-    cls = obj['categories']
+    cls_dict = obj['categories']
     id_label = {}
     cls_list = []
     count = 0
-    for c in cls:
+    for c in cls_dict:
         cls_list.append(c['name'])
         id = c['id']
         id_label[str(id)] = count
         count += 1
 
-    return cls, cls_list, id_label
+    return cls_dict, cls_list, id_label
 
 
 def change_id_to_labels(trainlist, id_label):
@@ -334,13 +329,13 @@ def make_lists(dataset, rootpath, imgtype, split=1, use_bg=False, fulltest=False
         return CLASSES[dataset], imgpath, trainlist, testlist, 0, 0, print_str
     elif dataset == 'coco':
         imgpath = os.path.join(rootpath, '%s.jpg')
-        cls, cls_list, id_label = get_coco_classes(rootpath)
+        cls_names, cls_list, id_label = get_coco_classes(rootpath)
         trainlist, testlist, print_str = make_object_lists(rootpath, dataset)
         # import pdb
         # pdb.set_trace()
         trainlist = change_id_to_labels(trainlist, id_label)
         testlist = change_id_to_labels(testlist, id_label)
-        return cls_list, imgpath, trainlist, testlist, cls, 0, print_str
+        return cls_list, imgpath, trainlist, testlist, cls_names, 0, print_str
 
 
 class LoadImage(object):

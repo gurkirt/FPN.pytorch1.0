@@ -1,24 +1,36 @@
 
 """ Adapted from:
+
+Modification by: Gurkirt Singh
+Modification started: 13th March
+
+    Parts of this files are from many github repos
     @longcw faster_rcnn_pytorch: https://github.com/longcw/faster_rcnn_pytorch
     @rbgirshick py-faster-rcnn https://github.com/rbgirshick/py-faster-rcnn
     Which was adopated by: Ellis Brown, Max deGroot
     https://github.com/amdegroot/ssd.pytorch
-    Further:
-    Updated by Gurkirt Singh for ucf101-24 dataset
+
+    Futher updates from 
+    https://github.com/qfgaohao/pytorch-ssd
+    https://github.com/gurkirt/realtime-action-detection
+
+    maybe more but that is where I got these from
+    Please don't remove above credits and give star to these repos
+
     Licensed under The MIT License [see LICENSE for details]
 """
 
-import os, socket
+import os
+import socket
+import getpass 
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import argparse
-from torch.autograd import Variable
 from modules.prior_box import PriorBox
-import torch.utils.data as data
+import torch.utils.data as data_utils
 from data import Detection, detection_collate, BaseTransform
-from data.augmentations import SSDAugmentation
+from data.augmentations import Augmentation
 from models.fpn import build_fpn
 from modules.multibox_loss import MultiBoxLoss
 from modules.joint_loss import JointLoss
@@ -198,7 +210,7 @@ def train(args, net, priors, optimizer, criterion, scheduler):
     cls_losses = AverageMeter()
 
     print('Loading Dataset...')
-    train_dataset = Detection(args, 'train', SSDAugmentation(args.input_dim, args.means, args.stds))
+    train_dataset = Detection(args, 'train', Augmentation(args.input_dim, args.means, args.stds))
     # train_dataset = Detection(args, 'train', BaseTransform(args.input_dim, args.means, args.stds))
     log_file.write(train_dataset.print_str)
     print('TRAIN-DATA :::>>>\n',train_dataset.print_str)
@@ -243,9 +255,9 @@ def train(args, net, priors, optimizer, criterion, scheduler):
 
 
     batch_iterator = None
-    train_data_loader = data.DataLoader(train_dataset, args.batch_size, num_workers=args.num_workers,
+    train_data_loader = data_utils.DataLoader(train_dataset, args.batch_size, num_workers=args.num_workers,
                                   shuffle=True, collate_fn=detection_collate)
-    val_data_loader = data.DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers,
+    val_data_loader = data_utils.DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers,
                                  shuffle=False, collate_fn=detection_collate, pin_memory=True)
     itr_count = 0
     torch.cuda.synchronize()
