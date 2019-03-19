@@ -9,13 +9,13 @@ base_dir = '/home/gurkirt/'
 base_dir = '/mnt/mercury-fast/datasets/'
 dataset = 'voc'
 use_cuda = False
-input_dim = 600
+input_dim = 300
 thresh = .5
 priorbox = PriorBox(input_dim=input_dim, is_cuda=use_cuda)
 priors = priorbox.forward()
 num_priors = priors.size(0)
 
-classes, imgpath, trainlist, testlist, video_list, numf_list, print_str = make_lists(dataset=dataset, rootpath=base_dir+dataset+'/', imgtype='rgb', split=1, use_bg=False, fulltest=False)
+classes, trainlist, print_str = make_lists(dataset=dataset, rootpath=base_dir+dataset+'/', imgtype='rgb', split=1, use_bg=False, fulltest=False)
 
 all_recall = torch.FloatTensor(len(trainlist)*30,1)
 count = 0

@@ -1,6 +1,6 @@
 """
 # orignally from https://github.com/amdegroot/ssd.pytorch
-# Modified by: Gurkir Singh to have PIL image like output and normlisation
+# Modified by: Gurkir Singh to have PIL image like output and resnet like normlisation
 
 """
 
@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import types
 from numpy import random
+from torchvision.transforms import functional as F
 
 DEBUG_AUG = False
 
@@ -86,21 +87,15 @@ class ConvertFromInts(object):
 
 class SubtractMeans(object):
     def __init__(self, means, stds):
-        self.means = np.array(means, dtype=np.float32)
-        self.stds = np.array(stds, dtype=np.float32)
+        self.means = means
+        self.stds = stds
 
     def __call__(self, images, boxes=None, labels=None, seq_len=None):
 
         if DEBUG_AUG:
             print('SubtractMeans()')
 
-        images = images.astype(np.float32)
-
-        for i in range(seq_len):
-            images[i, :, :, :] -= self.means
-            images[i, :, :, :] /= self.stds
-
-        return images.astype(np.float32), boxes, labels
+        return [F.normalize(img_tensor, self.means, self.stds) for img_tensor in images], boxes, labels
 
 
 class ToAbsoluteCoords(object):
@@ -272,8 +267,6 @@ class RandomBrightness(object):
 
         return images, boxes, labels
 
-
-
 class CV2toImage(object):
     def __call__(self, images, boxes=None, labels=None, seq_len=None):
 
@@ -282,16 +275,12 @@ class CV2toImage(object):
         num_imgs = images.shape[0]  # images = [num_imgs x H x W x C]
         for i in range(num_imgs):
             images[i, :, :, :] = cv2.cvtColor(images[i, :, :, :], cv2.COLOR_BGR2RGB) / 255.0
-
-        return images, boxes, labels
-
-class ToTensor(object):  # TODO: not used anywhere
-    def __call__(self, cvimage, boxes=None, labels=None, seq_len=None):
-
-        if DEBUG_AUG:
-            print('ToTensor()')
-
-        return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1), boxes, labels
+        
+        new_images = []
+        for img in images:
+            new_images.append(torch.from_numpy(img).permute(2, 0, 1))
+        # for img in 
+        return new_images, boxes, labels
 
 
 class RandomSampleCrop(object):
@@ -403,7 +392,11 @@ class Expand(object):
         tempmean = copy.deepcopy(self.mean)
         self.mean[0] = tempmean[2]
         self.mean[2] = tempmean[0]
-        print('Expand intialised with means', self.mean)
+        # print('Expand inti
+        # 
+        # 
+        # 
+        # alised with means', self.mean)
 
     def __call__(self, images, boxes, labels, seq_len=None):
 
@@ -484,6 +477,7 @@ class PhotometricDistort(object):
 #-----------------------------------------------------------------------------
 # ----------------------------------- NOTE -----------------------------------
 '''
+
 ConvertFromInts:        convert the img type from int to float
 ToAbsoluteCoords:       convert the normalised coordinates to absolute/original coordinates  
 Expand:                 expand the image and gt boxes at random with prob 0.5, it is different from Resize(), it expand the image (expand/shrink) within WxH diemnsion
@@ -491,14 +485,15 @@ RandomSampleCrop:       crop an patch from img at random within 4/5 given option
 RandomMirror:           horizontal flip of img and boxes at random with prob 0.5
 ToPercentCoords:        normalised the coordinates back again for training
 Resize:                 resize the img and boxes as per 300x300 dim
+CVtoImage               Convert OpenCV image to PIL image
 SubtractMeans:          subtract image mean and stds divs
 
 '''
 #-----------------------------------------------------------------------------
 
-class SSDAugmentation(object):
+class Augmentation(object):
     def __init__(self, size, means, stds):
-        print('SSDAugmentation_v1 : __init__() done!')
+        # print('Augmentation_v1 : __init__() done!')
         self.means = copy.deepcopy(means)
         self.stds = stds
         self.size = size

@@ -1,84 +1,141 @@
-import json, os, pdb
-basedir = '/mnt/mars-fast/datasets/coco/'
+import json, os, pdb, cv2
 
+basedir = '/home/gurkirt/datasets/coco/'
+# basedir = '/Users/gurkirt/Desktop/skynet/datasets/coco/'
+visuals = False
 
 def get_wh(images):
     img_list = {}
     for img in images:
         image_id = img['id']
-        box = [img['width']]
-        box.append(img['height'])
+        box = [img['width'], img['height']]
         if str(image_id) in img_list.keys():
             raise ('image_id should not repeat')
         else:
             img_list[str(image_id)] = box
+
     print('Number of images ', len(img_list))
     return img_list
 
+def convert(size, box):
+    '''Normlise box coordinate between 0 and 1'''
+    dw = 1./size[0]
+    dh = 1./size[1]
+    xmin = box[0]*dw
+    xmax = box[2]*dw
+    ymin = box[1]*dh
+    ymax = box[3]*dh
+    return (xmin,ymin,xmax,ymax)
 
-def write_txt_labels(filename, val=False):
-    save_dir = basedir + 'labels/'
-    annot_list = {}
+def get_coco_classes(anno_file):
+    # anno_file = basedir + 'instances_val2017.json'
+    with open(anno_file, 'r') as f:
+        obj = json.load(f)
+    cls_dict = obj['categories']
+    idsto = {}
+    cls_list = []
+    id_list = []
+    super_list = []
+    scount = 0
+    count = 0
+    for c in cls_dict:
+        cls_list.append(c['name'])
+        id_list.append(str(c['id']))
+        supername = c['supercategory']
+
+        if supername not in super_list:
+            super_list.append(supername)
+            scount += 1
+        
+        sl = super_list.index(supername)
+        idsto[str(c['id'])] = [count, sl]
+        # sl = slcount
+        count += 1
+
+    return cls_list, super_list, id_list, idsto
+
+def get_image_annots(filename, subset_str = 'train2017', annots=dict()):
+
     with open(filename, 'r') as f:
         obj = json.load(f)
+    
+    # pdb.set_trace()
     whs = get_wh(obj['images'])
     annos = obj['annotations']
+
     for anno in annos:
         image_id = anno['image_id']
-        # print(type(anno['bbox']), type(anno['category_id']))
-        box = anno['bbox']
-        box.append(anno['category_id'])
-        # print(box)
-        if str(image_id) in annot_list.keys():
-            # print('annot_list[str(image_id)] ', annot_list[str(image_id)])
-            annot_list[str(image_id)].append(box)
+        str_id = str(image_id).zfill(12)
+        wh  = whs[str(image_id)]
+        if str_id not in annots['annotations'].keys():
+            annots['annotations'][str_id] = dict()
+            annots['annotations'][str_id]['annos'] = []
+            annots['annotations'][str_id]['wh'] = wh
+            annots['annotations'][str_id]['set'] = subset_str
+        bb = anno['bbox']
+        bb[2] = bb[2] + bb[0]
+        bb[3] = bb[3] + bb[1]
+        cid = anno['category_id']
+        labels = annots['idstolabels'][str(cid)]
+
+        
+        if visuals:
+            imagename = basedir+subset_str+'/{:012d}.jpg'.format(image_id)
+            print(imagename)
+            image = cv2.imread(imagename)
+            assert wh[0] == image.shape[1] and wh[1] == image.shape[0]
+            print(bb, image.shape, wh, annots['classes'][labels[0]] )
+            image = cv2.rectangle(image,(int(bb[0]),int(bb[1])),(int(bb[2]),int(bb[3])),(0,255,0), thickness=3)
+            cv2.imshow('image99', image)
+            k = cv2.waitKey(0)
+
+        bb = convert(wh, bb)
+        condition = True
+        for b in bb:
+            if b<0 and b>1:
+                condition = False 
+        
+        if condition and bb[0]<bb[2] and bb[1]<bb[3]:
+            an_b = {}
+            an_b['cls'] = annots['classes'][labels[0]]
+            an_b['label'] = labels[0]
+            an_b['suprlbl'] = labels[1]
+            an_b['bbox'] = bb
+            annots['annotations'][str_id]['annos'].append(an_b)
         else:
-            annot_list[str(image_id)] = [box]
-
-    print('Number of images with annotations ', len(annot_list))
-
-    # pdb.set_trace()
-    ids = annot_list.keys()
-    pretxt = 'train2017'
-    if val:
-        pretxt = 'val2017'
-        ids = whs.keys()
-
-    new_ids = []
-    for image_id in ids:
-        new_ids.append('{:s}/{:012d}'.format(pretxt,int(image_id)))
-        lfile = '{:s}{:012d}.txt'.format(save_dir,int(image_id))
-        wh  = whs[image_id]
-        #if not os.path.isfile(lfile):
-        if image_id in annot_list.keys():
-            fid = open(lfile,'w')
-            # print(image_id, annot_list[image_id])
-            for box in annot_list[image_id]:
-                bbox = [box[0]/wh[0], box[1]/wh[1], (box[0] + box[2])/wh[0], (box[1] + box[3])/wh[1]]
-                check = True
-                for b in bbox:
-                    if b<0 or b>1.0001:
-                        check = False
-                assert check ,'box bound check fails '+' '.join([str(b) for b in bbox])
-
-                fid.write('{:f} {:f} {:f} {:f} {:d}\n'.format(bbox[0], bbox[1], bbox[2], bbox[3], box[4]))
-    # else:
-        #     raise 'there cant be two file with same annot'+lfile
-    return new_ids
-
-
-def write_list(filename, img_list):
-    fid = open(filename,'w')
-    for img in img_list:
-        fid.write(img+'\n')
-
+            print('we are skipping ', bb, image_id, len(annots['annotations'][str_id]))
+        # annos.append(anno)
+  
+    return annots
 
 if __name__ == '__main__':
-
     train_filename = basedir + 'instances_train2017.json'
-    img_list = write_txt_labels(train_filename)
-    write_list(basedir + 'train.txt', img_list)
     val_filename = basedir + 'instances_val2017.json'
-    img_list = write_txt_labels(val_filename, val=True)
-    write_list(basedir + 'test.txt', img_list)
+    
+    cls_list, super_list, id_list, idstolabels = get_coco_classes(val_filename)
+
+    db = dict()
+    db['classes'] = cls_list
+    db['superclasses'] = super_list
+    db['ids'] = id_list
+    db['idstolabels'] = idstolabels
+    db['annotations'] = dict()
+
+    db = get_image_annots(val_filename, 'val2017', db)
+    db = get_image_annots(train_filename, 'train2017', db)
+    ic = 0
+    ac = 0
+    for img_id in db['annotations'].keys():
+        num_a = len(db['annotations'][img_id]['annos'])
+        assert num_a>0, num_a
+        ic += 1
+        ac += num_a
+        
+    print('Avergage number of annotation per image are ', float(ac)/ic)
+    with open(basedir + 'annots.json', 'w') as f:
+        json.dump(db,f)
+
+     
+    
+
 

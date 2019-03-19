@@ -94,7 +94,7 @@ class ResNetFPN(nn.Module):
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
@@ -125,7 +125,7 @@ class ResNetFPN(nn.Module):
 
     def _upsample_add(self, x, y):
         _, _, h, w = y.size()
-        x_upsampled = F.upsample(x, [h, w], mode='bilinear')
+        x_upsampled = F.interpolate(x, [h, w], mode='bilinear', align_corners=True)
 
         return x_upsampled + y
 
@@ -151,7 +151,7 @@ class ResNetFPN(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        # x = self.maxpool(x)
         # print('x0 DATA ', torch.sum(x.data))
         x = self.layer1(x)
         # print('x DATA ', torch.sum(x.data))
@@ -173,7 +173,7 @@ class ResNetFPN(nn.Module):
 
         return p3, p4, p5, p6, p7
 
-    def load_my_state_dict(self, state_dict, seq_len):
+    def load_my_state_dict(self, state_dict, seq_len=1):
         own_state = self.state_dict()
         # print(own_state.keys())
         for name, param in state_dict.items():
@@ -197,7 +197,7 @@ class ResNetFPN(nn.Module):
             else:
                 print('NAME IS NOT IN OWN STATE::>' + name)
 
-def resnetfpn(perms, name, seq_len):
+def resnetfpn(perms, name, seq_len=1):
     num = int(name[6:])
     if num<50:
         return ResNetFPN(BasicBlock, perms, seq_len)

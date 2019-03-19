@@ -14,7 +14,8 @@ import torch.nn as nn
 class FPN(nn.Module):
     """Feature Pyramid Network Architecture
     The network is composed of a base network followed by the
-    added Head conv layers.  Each head layer branches into
+    added Head conv layers.  
+    Each head layer branches into
         1) conv2d for class conf scores
         2) conv2d for localization predictions
         3) associated priorbox layer to produce default bounding
@@ -45,27 +46,20 @@ class FPN(nn.Module):
         sources = self.base_net(x)
         loc = list()
         conf = list()
-
-        # apply multibox head to source layers
-        # c = 0
+        
         for x in sources:
-            # print('LEVEL c ', c, torch.sum(x.data))
-            # c+=1
             loc.append(self.loc(x).permute(0, 2, 3, 1).contiguous())
             conf.append(self.conf(x).permute(0, 2, 3, 1).contiguous())
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        output = (loc.view(loc.size(0), -1, 4),
-                  conf.view(conf.size(0), -1, self.num_classes)
-                  )
-        return output
+        
+        return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)
 
     def freeze_bn(self):
         for layer in self.modules():
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
-
 
 
     def make_head(self, head_size, out_planes):
@@ -79,13 +73,12 @@ class FPN(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, 0.01)
-                #m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
         return layers
 
-def build_fpn(modelname='resnet50', ar=6, head_size = 256, num_classes=80):
+def build_fpn(modelname, model_dir, ar=9, head_size = 256, num_classes=81):
 
-    return FPN(base_models(modelname = modelname), ar, head_size, num_classes)
+    return FPN(base_models(modelname, model_dir), ar, head_size, num_classes)

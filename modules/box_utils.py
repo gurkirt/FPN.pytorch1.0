@@ -1,23 +1,8 @@
-'''
-
-Modification by: Gurkirt Singh
-Modification started: 13th March
-
-Parts of this files are from many github repos
-https://github.com/amdegroot/ssd.pytorch
-https://github.com/qfgaohao/pytorch-ssd
-https://github.com/gurkirt/realtime-action-detection
-
-maybe more but that is where I got these from
-Please don't remove above credits and give star to these repos
-
-'''
-
 import torch, pdb, math
 import numpy as np
 
 class MatchPrior(object):
-    def __init__(self, priors, variances, seq_len=1, iou_threshold=0.5):
+    def __init__(self, priors, variances=[0.1, 0.2], seq_len=1, iou_threshold=0.5):
         self.priors = priors.clone()
         self.priors_point_form = priors.clone()
         # pdb.set_trace()
@@ -31,14 +16,15 @@ class MatchPrior(object):
     def __call__(self, gt_boxes, gt_labels, num_mt=1):
             # pdb.set_trace()
             # pdb.set_trace()
-            num_mt = =len(gt_labels)
+            # num_mt = =len(gt_labels)
             if type(gt_boxes) is np.ndarray:
                 gt_boxes = torch.from_numpy(gt_boxes)
             if type(gt_labels) is np.ndarray:
                 gt_labels = torch.from_numpy(gt_labels)
-
+            # pdb.set_trace()
             seq_overlaps =[]
             inds = torch.LongTensor([m*self.seq_len for m in range(num_mt)])  
+            # print(inds, num_mt)
             ## get indexes of first frame in seq for each microtube
             gt_labels = gt_labels[inds]
             for s in range(self.seq_len):
@@ -48,7 +34,6 @@ class MatchPrior(object):
             ## Compute average overlap
             for s in range(self.seq_len-1):
                 overlaps = overlaps + seq_overlaps[s+1]
-
             overlaps = overlaps/float(self.seq_len)
             # (Bipartite Matching)
             # [1,num_objects] best prior for each ground truth
@@ -141,6 +126,8 @@ def intersect(box_a, box_b):
     """
     A = box_a.size(0)
     B = box_b.size(0)
+    # pdb.set_trace()
+    # print(box_a.type(), box_b.type())
     max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
                        box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
     min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2),
@@ -161,6 +148,7 @@ def jaccard(box_a, box_b):
     Return:
         jaccard overlap: (tensor) Shape: [box_a.size(0), box_b.size(0)]
     """
+    # pdb.set_trace()
     inter = intersect(box_a, box_b)
     area_a = ((box_a[:, 2]-box_a[:, 0]) *
               (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
