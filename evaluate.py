@@ -100,7 +100,7 @@ def test_net(net, save_root, exp_name, input_type, dataset, iteration, num_class
 
         loc_data = output[0]
         conf_preds = output[1]
-        prior_data = output[2][:loc_data.size(1), :]
+        anchor_data = output[2][:loc_data.size(1), :]
 
         if print_time and val_itr%val_step == 0:
             torch.cuda.synchronize()
@@ -113,7 +113,7 @@ def test_net(net, save_root, exp_name, input_type, dataset, iteration, num_class
             gt[:, 1] *= height
             gt[:, 3] *= height
             gt_boxes.append(gt)
-            decoded_boxes = decode(loc_data[b].data, prior_data.data, cfg['variance']).cpu()
+            decoded_boxes = decode(loc_data[b].data, anchor_data.data, cfg['variance']).cpu()
             conf_scores = softmax(conf_preds[b]).data.cpu().clone()
             index = img_indexs[b]
             annot_info = image_ids[index]

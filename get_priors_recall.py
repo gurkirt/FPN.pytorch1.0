@@ -1,6 +1,6 @@
 
 from modules.box_utils import point_form, jaccard
-from modules.prior_box_base import PriorBox
+from modules.anchor_box_base import anchorBox
 import torch
 import numpy as np
 from data.detectionDatasets import make_object_lists
@@ -24,11 +24,11 @@ def main():
                 # classes, trainlist, print_str = make_lists(dataset=dataset, rootpath=base_dir+dataset+'/')
                 classes, trainlist, print_str = make_object_lists(base_dir+dataset+'/', train_sets)
                 # print(print_str)
-                priorbox = PriorBox(input_dim=input_dim, scale_ratios=scales)
+                anchorbox = anchorBox(input_dim=input_dim, scale_ratios=scales)
                 
-                priors = priorbox.forward()
-                num_priors = priors.size(0)
-                print(priors.size()) 
+                anchors = anchorbox.forward()
+                num_anchors = anchors.size(0)
+                print(anchors.size()) 
                 all_recall = torch.FloatTensor(len(trainlist)*30,1)
                 count = 0
                 for index in range(len(trainlist)):
@@ -36,11 +36,11 @@ def main():
                         img_id = annot_info[1]
                         targets = np.asarray(annot_info[3])
                         bboxes = torch.FloatTensor(annot_info[2])
-                        overlaps = jaccard(bboxes, point_form(priors))
-                        best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
-                        # print(torch.sum(best_prior_overlap>thresh))
-                        for bi in range(best_prior_overlap.size(0)):
-                                bo = best_prior_overlap[bi]
+                        overlaps = jaccard(bboxes, point_form(anchors))
+                        best_anchor_overlap, best_anchor_idx = overlaps.max(1, keepdim=True)
+                        # print(torch.sum(best_anchor_overlap>thresh))
+                        for bi in range(best_anchor_overlap.size(0)):
+                                bo = best_anchor_overlap[bi]
                                 # print(bo)
                                 all_recall[count, :] = bo
                                 count += 1
@@ -62,15 +62,15 @@ def just_whs():
                 # classes, trainlist, print_str = make_lists(dataset=dataset, rootpath=base_dir+dataset+'/')
                 classes, trainlist, print_str = make_object_lists(base_dir+dataset+'/', train_sets)
                 # print(print_str)
-                priorbox = PriorBox(input_dim=input_dim, scale_ratios=scales)
-                priors = priorbox.forward()
-                print(priors.size())
-                unique_priors = priors.numpy()
-                unique_priors[:,0] = unique_priors[:,0]*0
-                unique_priors[:,1] = unique_priors[:,1]*0
-                priors = np.unique(unique_priors, axis=0)
-                priors = torch.from_numpy(priors)
-                # print(priors) 
+                anchorbox = anchorBox(input_dim=input_dim, scale_ratios=scales)
+                anchors = anchorbox.forward()
+                print(anchors.size())
+                unique_anchors = anchors.numpy()
+                unique_anchors[:,0] = unique_anchors[:,0]*0
+                unique_anchors[:,1] = unique_anchors[:,1]*0
+                anchors = np.unique(unique_anchors, axis=0)
+                anchors = torch.from_numpy(anchors)
+                # print(anchors) 
                 all_recall = torch.FloatTensor(len(trainlist)*30,1)
                 count = 0
                 for index in range(len(trainlist)):
@@ -84,11 +84,11 @@ def just_whs():
                         bboxes[:,0] = bboxes[:,0] * 0.0
                         bboxes[:,1] = bboxes[:,1] * 0.0
                         # print(bboxes)
-                        overlaps = jaccard(bboxes, priors)
-                        best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
-                        # print(torch.sum(best_prior_overlap>thresh))
-                        for bi in range(best_prior_overlap.size(0)):
-                                bo = best_prior_overlap[bi]
+                        overlaps = jaccard(bboxes, anchors)
+                        best_anchor_overlap, best_anchor_idx = overlaps.max(1, keepdim=True)
+                        # print(torch.sum(best_anchor_overlap>thresh))
+                        for bi in range(best_anchor_overlap.size(0)):
+                                bo = best_anchor_overlap[bi]
                                 # print(bo)
                                 all_recall[count, :] = bo
                                 count += 1

@@ -3,21 +3,21 @@ from math import sqrt as sqrt
 from itertools import product as product
 import numpy as np
 
-class PriorBox(object):
-    """Compute priorbox coordinates in center-offset form for each source
+class anchorBox(object):
+    """Compute anchorbox coordinates in center-offset form for each source
     feature map.
     """
     def __init__(self, input_dim=300, feature_size = [75, 38, 19, 10, 5],
                                        aspect_ratios =[0.5, 1 / 1., 1.5],
                                        scale_ratios = [1.,1.34, 1.67],
                                        dataset='all'):
-        super(PriorBox, self).__init__()
+        super(anchorBox, self).__init__()
         # self.type = cfg.name
         self.image_size = input_dim
-        # number of priors for feature map location (either 4 or 6)
+        # number of anchors for feature map location (either 4 or 6)
         self.anchor_boxes = len(aspect_ratios)*len(scale_ratios)
         self.ar = self.anchor_boxes
-        self.num_priors = 0
+        self.num_anchors = 0
         self.variance = [0.1, 0.2]
         self.feature_maps = feature_size
         self.scale_ratios = scale_ratios

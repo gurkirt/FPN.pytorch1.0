@@ -1,6 +1,6 @@
 
 from modules.box_utils import point_form, jaccard
-from modules.prior_box_base import PriorBox
+from modules.anchor_box_base import anchorBox
 import torch, pdb
 import numpy as np
 from data.detectionDatasets import make_object_lists
@@ -14,16 +14,16 @@ feature_size = [75, 38, 19, 10, 5]
 # feature_size = [75, 38, 19, 10, 5]
 thresh = 0.5
 
-def  get_unique_priors(scales):
+def  get_unique_anchors(scales):
         # print(print_str)
-        priorbox = PriorBox(input_dim=input_dim, scale_ratios=scales)
-        priors = priorbox.forward()
-        print(priors.size())
-        unique_priors = priors.numpy()
-        unique_priors[:,0] = unique_priors[:,0]*0
-        unique_priors[:,1] = unique_priors[:,1]*0
-        priors = np.unique(unique_priors, axis=0)
-        return torch.from_numpy(priors)
+        anchorbox = anchorBox(input_dim=input_dim, scale_ratios=scales)
+        anchors = anchorbox.forward()
+        print(anchors.size())
+        unique_anchors = anchors.numpy()
+        unique_anchors[:,0] = unique_anchors[:,0]*0
+        unique_anchors[:,1] = unique_anchors[:,1]*0
+        anchors = np.unique(unique_anchors, axis=0)
+        return torch.from_numpy(anchors)
 
 def get_dataset_boxes(dataset, train_sets):
 
@@ -69,9 +69,9 @@ def kmean_whs():
                 val_sets = ['test2007']
                 max_itr = 10
         
-        unique_priors = get_unique_priors(scales)
-        centers = unique_priors.clone()
-        print(unique_priors.size())
+        unique_anchors = get_unique_anchors(scales)
+        centers = unique_anchors.clone()
+        print(unique_anchors.size())
         numc = centers.size(0)
         boxes = get_dataset_boxes(dataset, train_sets)
         print('Initial centers\n', centers, boxes.size())

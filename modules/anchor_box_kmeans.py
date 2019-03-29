@@ -38,15 +38,15 @@ anchor_boxes_kmeaned['coco'] = np.asarray( [[0.0000, 0.0000, 0.0260, 0.0750],
 feature_sizes = dict()
 feature_sizes['300'] = [75, 38, 19, 10, 5]
 
-class PriorBox(object):
-    """Compute priorbox coordinates in center-offset form for each source
+class anchorBox(object):
+    """Compute anchorbox coordinates in center-offset form for each source
     feature map.
     """
     def __init__(self, input_dim=300, dataset = 'coco', default_ratios= 3):
-        super(PriorBox, self).__init__()
+        super(anchorBox, self).__init__()
         # self.type = cfg.name
         self.image_size = input_dim
-        self.prior_set = dataset
+        self.anchor_set = dataset
         self.ar = default_ratios
         self.base_set = anchor_boxes_kmeaned[dataset]
         self.feature_size = feature_sizes[str(input_dim)]

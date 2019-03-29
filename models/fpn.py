@@ -19,7 +19,7 @@ class FPN(nn.Module):
     Each head layer branches into
         1) conv2d for class conf scores
         2) conv2d for localization predictions
-        3) associated priorbox layer to produce default bounding
+        3) associated anchorbox layer to produce default bounding
            boxes specific to the layer's feature map size.
     See: https://arxiv.org/pdf/1612.03144.pdf for more details.
 
@@ -33,7 +33,7 @@ class FPN(nn.Module):
         super(FPN, self).__init__()
 
         self.num_classes = num_classes
-        # TODO: implement __call__ in PriorBox
+        # TODO: implement __call__ in anchorBox
         self.ar = ar
         self.base_net = base
         # self.features = self.make_features(head_size)

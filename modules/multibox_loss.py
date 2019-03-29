@@ -12,16 +12,16 @@ class MultiBoxLoss(nn.Module):
         super(MultiBoxLoss, self).__init__()
         self.neg_pos_ratio = neg_pos_ratio
 
-    def forward(self, confidence, predicted_locations, gts, priors):
-        # cls_out, reg_out, prior_gt_labels, prior_gt_locations
+    def forward(self, confidence, predicted_locations, gts, anchors):
+        # cls_out, reg_out, anchor_gt_labels, anchor_gt_locations
         """
 
         Compute classification loss and smooth l1 loss.
         Args:
-            confidence (batch_size, num_priors, num_classes): class predictions.
-            locations (batch_size, num_priors, 4*seq_len): predicted locations.
-            labels (batch_size, num_priors): real labels of all the priors.
-            boxes (batch_size, num_priors, 4*seq_len): real boxes corresponding all the priors.
+            confidence (batch_size, num_anchors, num_classes): class predictions.
+            locations (batch_size, num_anchors, 4*seq_len): predicted locations.
+            labels (batch_size, num_anchors): real labels of all the anchors.
+            boxes (batch_size, num_anchors, 4*seq_len): real boxes corresponding all the anchors.
 
         """
         
@@ -36,7 +36,7 @@ class MultiBoxLoss(nn.Module):
                 gt_labels = gts[b][:,4]
                 gt_labels = gt_labels.type(torch.cuda.LongTensor)
 
-                conf, loc = box_utils.match_priors(gt_boxes, gt_labels, priors)
+                conf, loc = box_utils.match_anchors(gt_boxes, gt_labels, anchors)
 
                 labels.append(conf)
                 gt_locations.append(loc)

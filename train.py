@@ -33,14 +33,13 @@ import torch
 import shutil
 import torch.nn as nn
 import torch.optim as optim
-from modules.prior_box_kmeans import PriorBox
-# from modules.prior_box_base import PriorBox
+from modules.anchor_box_kmeans import anchorBox
+# from modules.anchor_box_base import anchorBox
 import torch.utils.data as data_utils
 from data import Detection, BaseTransform, custum_collate
 from data.augmentations import Augmentation
 from models.fpn import build_fpn
 from modules.multibox_loss import MultiBoxLoss
-# from modules.joint_loss import JointLoss
 from modules.evaluation import evaluate_detections
 from modules.box_utils import decode, nms
 from modules import  AverageMeter
@@ -147,8 +146,8 @@ def set_bn_eval(m):
 def main():
 
     args.step_values = [int(val) for val in args.step_values.split(',')]
-    args.loss_reset_step = 30
-    args.print_step = 5
+    args.loss_reset_step = 10
+    args.print_step = 10
     args.dataset = args.dataset.lower()
     args.basenet = args.basenet.lower()
 
@@ -172,13 +171,13 @@ def main():
             if file.endswith('.py'): #fnmatch.filter(files, filepattern):
                 shutil.copy2(os.path.join(dirpath, file), source_dir)
 
-    priors = 'None'
+    anchors = 'None'
     with torch.no_grad():
-        priorbox = PriorBox(input_dim=args.input_dim, dataset=args.dataset)
-        priors = priorbox.forward()
-        args.ar = priorbox.ar
+        anchorbox = anchorBox(input_dim=args.input_dim, dataset=args.dataset)
+        anchors = anchorbox.forward()
+        args.ar = anchorbox.ar
     
-    args.num_priors = priors.size(0)
+    args.num_anchors = anchors.size(0)
 
     if args.dataset == 'coco':
         args.train_sets = ['train2017']
@@ -216,12 +215,12 @@ def main():
     
     scheduler = MultiStepLR(optimizer, milestones=args.step_values, gamma=args.gamma)
 
-    train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val_dataset)
+    train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, val_dataset)
 
 
-def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val_dataset):
+def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, val_dataset):
     
-    priors = priors.cuda(0, non_blocking=True)
+    anchors = anchors.cuda(0, non_blocking=True)
     if args.tensorboard:
         log_dir = args.save_root+'tensorboard-{date:%m-%d-%Hx}.log'.format(date=datetime.datetime.now())
         sw = SummaryWriter(log_dir=log_dir)
@@ -306,7 +305,7 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
             reg_out, cls_out = net(images)
 
             optimizer.zero_grad()
-            loss_l, loss_c = criterion(cls_out, reg_out, gts, priors)
+            loss_l, loss_c = criterion(cls_out, reg_out, gts, anchors)
             loss = loss_l + loss_c
 
             loss.backward()
@@ -316,7 +315,6 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
             # pdb.set_trace()
             loc_loss = loss_l.item()
             conf_loss = loss_c.item()
-            
             
             if loc_loss>1000:
                 lline = '\n\n\n We got faulty LOCATION loss {} {} \n\n\n'.format(loc_loss, conf_loss)
@@ -376,7 +374,7 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
                            repr(iteration) + '.pth')
 
                 net.eval() # switch net to evaluation mode
-                mAP, ap_all, ap_strs = validate(args, net, priors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
+                mAP, ap_all, ap_strs = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
 
                 for ap_str in ap_strs:
                     print(ap_str)
@@ -414,7 +412,7 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
     log_file.close()
 
 
-def validate(args, net, priors,  val_data_loader, val_dataset, iteration_num, iou_thresh=0.5):
+def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, iou_thresh=0.5):
     """Test a FPN network on an image database."""
     print('Validating at ', iteration_num)
     num_images = len(val_dataset)
@@ -453,7 +451,7 @@ def validate(args, net, priors,  val_data_loader, val_dataset, iteration_num, io
                 gt[:,1] *= height
                 gt[:,3] *= height
                 gt_boxes.append(gt)
-                decoded_boxes = decode(loc_data[b], priors, [0.1, 0.2]).clone()
+                decoded_boxes = decode(loc_data[b], anchors, [0.1, 0.2]).clone()
                 conf_scores = conf_scores_all[b].clone()
                 #Apply nms per class and obtain the results
                 for cl_ind in range(1, num_classes):
