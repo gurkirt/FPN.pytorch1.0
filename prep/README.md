@@ -11,6 +11,7 @@ Copy `download_voc.sh` to where you want to store `<data_diretory_path>` the dat
 
 It will download VOC dataset and store on `voc` folder under your data directory
 
-Next, in order to run `python voc_pre_prep.py` from  `prep` directory chnage `base_dir = '/home/gurkirt/datasets/voc/'` in line 15 to your dataset directory.
+Next, in order to run `python voc_pre_prep.py` from  `prep` directory change `base_dir = '<data_diretory_path>/voc'` in [line 15](https://github.com/gurkirt/FPN.pytorch/blob/master/prep/voc_pre_prep.py#L15) to your dataset directory.
 
 That should preprocess VOC dataset and put `.json` annotation file in `voc` directory.
+
