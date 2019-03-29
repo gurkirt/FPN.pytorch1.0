@@ -3,6 +3,7 @@
 # It is getting ready, another couple of days: updated on 29th March
 # train.py works waiting for results on VOC 
 
+We freeze the batch normlisation layers of  
 ## Performance map@0.5 ResNet18
 
 Hand picked anchors per scale 9: 74.2
