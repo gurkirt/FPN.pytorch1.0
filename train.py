@@ -22,60 +22,77 @@
 """
 
 import os
+import sys
+import time
 import socket
 import getpass 
 import argparse
 import datetime
+import numpy as np
 import torch
+import shutil
 import torch.nn as nn
 import torch.optim as optim
-from modules.prior_box import PriorBox
+from modules.prior_box_kmeans import PriorBox
+# from modules.prior_box_base import PriorBox
 import torch.utils.data as data_utils
 from data import Detection, BaseTransform, custum_collate
 from data.augmentations import Augmentation
 from models.fpn import build_fpn
 from modules.multibox_loss import MultiBoxLoss
 # from modules.joint_loss import JointLoss
-import numpy as np
-import time
 from modules.evaluation import evaluate_detections
-from modules.box_utils import decode, nms, MatchPrior
+from modules.box_utils import decode, nms
 from modules import  AverageMeter
 from torch.optim.lr_scheduler import MultiStepLR
+
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
+
 parser = argparse.ArgumentParser(description='Retinet with FPN as base with resnet Training')
-parser.add_argument('--version', default='v1', help='layer')
+# version or add name to experiment
+parser.add_argument('--version', default='kmeansAR3', help='layer')
+# Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
+#  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
+# Input size of image onlye 300 is supprted at the moment 
 parser.add_argument('--input_dim', default=300, type=int, help='Input Size for SSD')
-parser.add_argument('--jaccard_threshold', default=0.5, type=float, help='Min Jaccard index for matching')
+#  data loading argumnets
 parser.add_argument('--batch_size', default=32, type=int, help='Batch size for training')
-parser.add_argument('--resume', default=None, type=str, help='Resume from checkpoint')
 parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')
-parser.add_argument('--max_iter', default=120000, type=int, help='Number of training iterations')
-parser.add_argument('--val_step', default=10000, type=int, help='Number of training iterations before evaluation')
-parser.add_argument('--man_seed', default=1, type=int, help='manualseed for reproduction')
-parser.add_argument('--cuda', default=True, type=str2bool, help='Use cuda to train model')
-parser.add_argument('--ngpu', default=1, type=int, help='Use cuda to train model')
+# optimiser hyperparameters
+parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--step_values', default='60000,90000', type=str, help='Chnage the lr @')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
-parser.add_argument('--log_iters', default=True, type=bool, help='Print the loss at each iteration')
-parser.add_argument('--visdom', default=False, type=str2bool, help='Use visdom to for loss visualization')
+
+# Loss function matching threshold
+parser.add_argument('--jaccard_threshold', default=0.5, type=float, help='Min Jaccard index for matching')
+
+# Evaluation hyperparameters
+parser.add_argument('--val_step', default=10000, type=int, help='Number of training iterations before evaluation')
+parser.add_argument('--iou_thresh', default=0.5, type=float, help='Evaluation threshold')
+parser.add_argument('--conf_thresh', default=0.001, type=float, help='Confidence threshold for evaluation')
+parser.add_argument('--nms_thresh', default=0.45, type=float, help='NMS threshold')
+parser.add_argument('--topk', default=50, type=int, help='topk for evaluation')
+
+# Progress logging
+parser.add_argument('--log_iters', default=True, type=str2bool, help='Print the loss at each iteration')
+parser.add_argument('--tensorboard', default=False, type=str2bool, help='Use tensorboard for loss/evalaution visualization')
+parser.add_argument('--visdom', default=False, type=str2bool, help='Use visdom for loss/evalaution visualization')
 parser.add_argument('--vis_port', default=8098, type=int, help='Port for Visdom Server')
+
+# Program arguments
+parser.add_argument('--man_seed', default=1, type=int, help='manualseed for reproduction')
+parser.add_argument('--ngpu', default=1, type=int, help='If  more than then use all visible GPUs by default only one GPU used ') 
+# Use CUDA_VISIBLE_DEVICES=0,1,4,6 to selct GPUs to use
 parser.add_argument('--data_root', default='/mnt/mercury-fast/datasets/', help='Location to root directory fo dataset') # /mnt/mars-fast/datasets/
 parser.add_argument('--save_root', default='/mnt/mercury-fast/datasets/', help='Location to save checkpoint models') # /mnt/sun-gamma/datasets/
-parser.add_argument('--iou_thresh', default=0.5, type=float, help='Evaluation threshold')
-parser.add_argument('--conf_thresh', default=0.01, type=float, help='Confidence threshold for evaluation')
-parser.add_argument('--nms_thresh', default=0.45, type=float, help='NMS threshold')
-parser.add_argument('--topk', default=20, type=int, help='topk for evaluation')
-##verbosity
-parser.add_argument('-v', default=True, type=str2bool, help='')
 
 
 ## Parse arguments
@@ -93,10 +110,13 @@ if username == 'gurkirt':
         args.data_root = '/mnt/mars-fast/datasets/'
         args.save_root = '/mnt/mercury-alpha/'
         args.vis_port = 8097
-    elif hostname in ['sun']:
+    elif hostname in ['sun','jupiter']:
         args.data_root = '/mnt/mercury-fast/datasets/'
         args.save_root = '/mnt/mercury-alpha/'
-        args.vis_port = 8096
+        if hostname in ['sun']:
+            args.vis_port = 8096
+        else:
+            args.vis_port = 8095
     elif hostname == 'mercury':
         args.data_root = '/mnt/mercury-fast/datasets/'
         args.save_root = '/mnt/mercury-alpha/'
@@ -106,18 +126,19 @@ if username == 'gurkirt':
         args.save_root = '/home/gurkirt/cache/'
         args.vis_port = 8097
         visdom=False
+    else:
+        raise('ERROR!!!!!!!! Specify directories')
 
+if args.tensorboard:
+    from tensorboardX import SummaryWriter
 
-## set random seeds
+## set random seeds and global settings
 np.random.seed(args.man_seed)
 torch.manual_seed(args.man_seed)
-
-if args.cuda:
-    torch.cuda.manual_seed_all(args.man_seed)
-
+torch.cuda.manual_seed_all(args.man_seed)
 torch.set_default_tensor_type('torch.FloatTensor')
 
-
+# Freeze batch normlisation layers
 def set_bn_eval(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
@@ -127,12 +148,11 @@ def main():
 
     args.step_values = [int(val) for val in args.step_values.split(',')]
     args.loss_reset_step = 30
-    args.print_step = 10
-    args.pr_th = 11
+    args.print_step = 5
     args.dataset = args.dataset.lower()
     args.basenet = args.basenet.lower()
 
-    args.exp_name = 'FPN-{}-bs{}-{}-lr{:05d}'.format(args.dataset,
+    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}'.format(args.input_dim, args.version, args.dataset,
                                                           args.batch_size,
                                                           args.basenet,
                                                           int(args.lr * 100000))
@@ -143,19 +163,28 @@ def main():
     if not os.path.isdir(args.save_root): # if save directory doesn't exist create it
         os.makedirs(args.save_root)
 
+    source_dir = args.save_root+'/source/'
+    if not os.path.isdir(source_dir):
+        os.system('mkdir -p ' + source_dir)
+    
+    for dirpath, dirs, files in os.walk('./', topdown=True):
+        for file in files:
+            if file.endswith('.py'): #fnmatch.filter(files, filepattern):
+                shutil.copy2(os.path.join(dirpath, file), source_dir)
+
     priors = 'None'
     with torch.no_grad():
-        priorbox = PriorBox(input_dim=args.input_dim, is_cuda=args.cuda)
+        priorbox = PriorBox(input_dim=args.input_dim, dataset=args.dataset)
         priors = priorbox.forward()
+        args.ar = priorbox.ar
     
     args.num_priors = priors.size(0)
-    args.ar = priorbox.anchor_boxes
 
     if args.dataset == 'coco':
         args.train_sets = ['train2017']
         args.val_sets = ['val2017']
     else:
-        args.train_sets = ['train2007', 'val2007']
+        args.train_sets = ['train2007', 'val2007', 'train2012', 'val2012']
         args.val_sets = ['test2007']
 
     args.means =[0.485, 0.456, 0.406]
@@ -163,7 +192,7 @@ def main():
 
     print('\nLoading Datasets')
     train_dataset = Detection(args, train=True, image_sets=args.train_sets, 
-                            transform=Augmentation(args.input_dim, args.means, args.stds), anno_transform=MatchPrior(priors))
+                            transform=Augmentation(args.input_dim, args.means, args.stds))
     print('Done Loading Dataset Train Dataset :::>>>\n',train_dataset.print_str)
     val_dataset = Detection(args, train=False, image_sets=args.val_sets, 
                             transform=BaseTransform(args.input_dim, args.means, args.stds), full_test=False)
@@ -174,7 +203,6 @@ def main():
     
     args.head_size = 256
     
-
     net = build_fpn(args.basenet, args.data_root, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
     net = net.cuda()
     
@@ -193,25 +221,30 @@ def main():
 
 def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val_dataset):
     
-    log_file = open(args.save_root+'training.log{date:%m-%d-%Hx}.txt'.format(date=datetime.datetime.now()), 'w', 1)
+    priors = priors.cuda(0, non_blocking=True)
+    if args.tensorboard:
+        log_dir = args.save_root+'tensorboard-{date:%m-%d-%Hx}.log'.format(date=datetime.datetime.now())
+        sw = SummaryWriter(log_dir=log_dir)
+    log_file = open(args.save_root+'training.text{date:%m-%d-%Hx}.txt'.format(date=datetime.datetime.now()), 'w', 1)
     log_file.write(args.exp_name+'\n')
+    # log_file.write(sys.argv)
     for arg in vars(args):
         print(arg, getattr(args, arg))
         log_file.write(str(arg)+': '+str(getattr(args, arg))+'\n')
     log_file.write(str(net))
 
     net.train()
-    # net.module.base_net.apply(set_bn_eval)
+    net.module.base_net.apply(set_bn_eval)
 
     # loss counters
     batch_time = AverageMeter()
+    data_time = AverageMeter()
     losses = AverageMeter()
     loc_losses = AverageMeter()
     cls_losses = AverageMeter()
 
     # train_dataset = Detection(args, 'train', BaseTransform(args.input_dim, args.means, args.stds))
     log_file.write(train_dataset.print_str)
-    
     log_file.write(val_dataset.print_str)
     print('Train-DATA :::>>>', train_dataset.print_str)
     print('VAL-DATA :::>>>', val_dataset.print_str)
@@ -251,29 +284,29 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
         )
 
 
-    batch_iterator = None
     train_data_loader = data_utils.DataLoader(train_dataset, args.batch_size, num_workers=args.num_workers,
-                                  shuffle=True,collate_fn=custum_collate )
+                                  shuffle=True, pin_memory=True, collate_fn=custum_collate )
     val_data_loader = data_utils.DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers,
                                  shuffle=False, pin_memory=True, collate_fn=custum_collate)
     itr_count = 0
     torch.cuda.synchronize()
-    t0 = time.perf_counter()
+    start = time.perf_counter()
     iteration = 0
 
     while iteration <= args.max_iter:
-        for i, (images, _ , prior_gt_labels, prior_gt_locations, _) in enumerate(train_data_loader):
+        for i, (images, gts, _) in enumerate(train_data_loader):
             if iteration > args.max_iter:
                 break
             iteration += 1
             images = images.cuda(0, non_blocking=True)
-            prior_gt_labels = prior_gt_labels.cuda(0, non_blocking=True)
-            prior_gt_locations = prior_gt_locations.cuda(0, non_blocking=True)
+            gts = [anno.cuda(0, non_blocking=True) for anno in gts]
             # forward
+            torch.cuda.synchronize()
+            data_time.update(time.perf_counter() - start)
             reg_out, cls_out = net(images)
 
             optimizer.zero_grad()
-            loss_l, loss_c = criterion(cls_out, reg_out, prior_gt_labels, prior_gt_locations)
+            loss_l, loss_c = criterion(cls_out, reg_out, gts, priors)
             loss = loss_l + loss_c
 
             loss.backward()
@@ -283,51 +316,46 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
             # pdb.set_trace()
             loc_loss = loss_l.item()
             conf_loss = loss_c.item()
-
             
             
-            if iteration > args.pr_th:
-                if loc_loss>1000:
-                    lline = '\n\n\n We got faulty LOCATION loss {} {} \n\n\n'.format(loc_loss, conf_loss)
-                    log_file.write(lline)
-                    print(lline, targets)
-                    loc_loss = 20.0
-                if conf_loss>100000:
-                    lline = '\n\n\n We got faulty CLASSIFICATION loss {} {} \n\n\n'.format(loc_loss, conf_loss)
-                    log_file.write(lline)
-                    print(lline, targets)
-                    conf_loss = 20.0
+            if loc_loss>1000:
+                lline = '\n\n\n We got faulty LOCATION loss {} {} \n\n\n'.format(loc_loss, conf_loss)
+                log_file.write(lline)
+                print(lline)
+                loc_loss = 20.0
+            if conf_loss>1000:
+                lline = '\n\n\n We got faulty CLASSIFICATION loss {} {} \n\n\n'.format(loc_loss, conf_loss)
+                log_file.write(lline)
+                print(lline)
+                conf_loss = 20.0
             # print('Loss data type ',type(loc_loss))
             loc_losses.update(loc_loss)
             cls_losses.update(conf_loss)
             losses.update((loc_loss + conf_loss)/2.0)
 
-            if iteration % args.print_step == 0 and iteration > args.pr_th+1:
+            torch.cuda.synchronize()
+            batch_time.update(time.perf_counter() - start)
+            start = time.perf_counter()
+
+            if iteration % args.print_step == 0 and iteration > 11:
                 if args.visdom:
                     losses_list = [loc_losses.val, cls_losses.val, losses.val, loc_losses.avg, cls_losses.avg, losses.avg]
                     viz.line(X=torch.ones((1, 6)).cpu() * iteration,
                         Y=torch.from_numpy(np.asarray(losses_list)).unsqueeze(0).cpu(),
                         win=lot,
                         update='append')
-
-
-                torch.cuda.synchronize()
-                t1 = time.perf_counter()
-                batch_time.update(t1 - t0)
-
-                print_line = 'Itration {:06d}/{:06d} loc-loss {:.3f}({:.3f}) cls-loss {:.5f}({:.5f}) ' \
-                             'average-loss {:.3f}({:.3f}) Timer {:0.3f}({:0.3f})'.format(
+                if args.tensorboard:
+                    sw.add_scalars('Classification', {'val': cls_losses.val, 'avg':cls_losses.avg},iteration)
+                    sw.add_scalars('Localisation', {'val': loc_losses.val, 'avg':loc_losses.avg},iteration)
+                    sw.add_scalars('Overall', {'val': losses.val, 'avg':losses.avg},iteration)
+                    
+                print_line = 'Itration {:06d}/{:06d} loc-loss {:.2f}({:.2f}) cls-loss {:.2f}({:.2f}) ' \
+                             'average-loss {:.2f}({:.2f}) DataTime{:0.2f}({:0.2f}) Timer {:0.2f}({:0.2f})'.format(
                               iteration, args.max_iter, loc_losses.val, loc_losses.avg, cls_losses.val,
-                              cls_losses.avg, losses.val, losses.avg, batch_time.val, batch_time.avg)
+                              cls_losses.avg, losses.val, losses.avg, 10*data_time.val, 10*data_time.avg, 10*batch_time.val, 10*batch_time.avg)
 
-                torch.cuda.synchronize()
-                t0 = time.perf_counter()
                 log_file.write(print_line+'\n')
                 print(print_line)
-
-                # if args.visdom and args.send_images_to_visdom:
-                #     random_batch_index = np.random.randint(images.size(0))
-                #     viz.image(images.data[random_batch_index].cpu().numpy())
                 itr_count += 1
 
                 if itr_count % args.loss_reset_step == 0 and itr_count > 0:
@@ -335,11 +363,12 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
                     cls_losses.reset()
                     losses.reset()
                     batch_time.reset()
+                    data_time.reset()
                     print('Reset ', args.exp_name,' after', itr_count*args.print_step)
                     itr_count = 0
 
 
-            if (iteration % args.val_step == 0 or iteration == 5000) and iteration>0:
+            if (iteration % args.val_step == 0 or iteration == 5000) and iteration>10:
                 torch.cuda.synchronize()
                 tvs = time.perf_counter()
                 print('Saving state, iter:', iteration)
@@ -355,6 +384,13 @@ def train(args, net, priors, optimizer, criterion, scheduler, train_dataset, val
                 ptr_str = '\nMEANAP:::=>'+str(mAP)+'\n'
                 print(ptr_str)
                 log_file.write(ptr_str)
+
+                if args.tensorboard:
+                    sw.add_scalar('mAP@0.5', mAP, iteration)
+                    class_AP_group = dict()
+                    for c, ap in enumerate(ap_all):
+                        class_AP_group[args.classes[c]] = ap
+                    sw.add_scalars('ClassAPs', class_AP_group, iteration)
 
                 if args.visdom:
                     aps = [mAP]
@@ -383,7 +419,7 @@ def validate(args, net, priors,  val_data_loader, val_dataset, iteration_num, io
     print('Validating at ', iteration_num)
     num_images = len(val_dataset)
     num_classes = args.num_classes
-    priors = priors.cuda()
+    
     det_boxes = [[] for _ in range(num_classes-1)]
     gt_boxes = []
     print_time = True
@@ -393,7 +429,7 @@ def validate(args, net, priors,  val_data_loader, val_dataset, iteration_num, io
     ts = time.perf_counter()
     softmax = nn.Softmax(dim=2).cuda()
     with torch.no_grad():
-        for val_itr, (images, targets, _, _, img_indexs) in enumerate(val_data_loader):
+        for val_itr, (images, targets, img_indexs) in enumerate(val_data_loader):
 
             torch.cuda.synchronize()
             t1 = time.perf_counter()

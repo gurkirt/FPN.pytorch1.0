@@ -6,6 +6,7 @@ Inspired from https://github.com/kuangliu/pytorch-retinanet and
 https://github.com/gurkirt/realtime-action-detection
 
 """
+
 from models.base_models import base_models
 import torch, math
 import torch.nn as nn
@@ -35,19 +36,21 @@ class FPN(nn.Module):
         # TODO: implement __call__ in PriorBox
         self.ar = ar
         self.base_net = base
+        # self.features = self.make_features(head_size)
         self.loc = self.make_head(head_size, self.ar * 4)
         self.conf = self.make_head(head_size, self.ar * num_classes)
-        self.softmax = nn.Softmax().cuda()
-        self.sigmoid = nn.Sigmoid().cuda()
-        # self.detect = Detect(num_classes, 0, 200, 0.001, 0.45)
 
     def forward(self, x):
 
         sources = self.base_net(x)
+        # features = list()
+        # for x in sources:
+        #     features.append(self.features(x))
+        features = sources
+        
         loc = list()
         conf = list()
-        
-        for x in sources:
+        for x in features:
             loc.append(self.loc(x).permute(0, 2, 3, 1).contiguous())
             conf.append(self.conf(x).permute(0, 2, 3, 1).contiguous())
 
@@ -56,26 +59,35 @@ class FPN(nn.Module):
         
         return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)
 
-    def freeze_bn(self):
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
 
-
-    def make_head(self, head_size, out_planes):
+    def make_features(self, head_size):
         layers = []
-        for _ in range(4):
-            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1))
+        for _ in range(2):
+            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
             layers.append(nn.ReLU(True))
-        layers.append(nn.Conv2d(head_size, out_planes, kernel_size=3, stride=1, padding=1))
         layers = nn.Sequential(*layers)
         for m in layers.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, 0.01)
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
+            
+
+        return layers
+
+    def make_head(self, head_size, out_planes):
+        layers = []
+
+        for _ in range(4):
+            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
+            layers.append(nn.ReLU(True))
+
+        layers.append(nn.Conv2d(head_size, out_planes, kernel_size=3, stride=1, padding=1))
+        layers = nn.Sequential(*layers)
+        
+        for m in layers.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, 0.01)
 
         return layers
 

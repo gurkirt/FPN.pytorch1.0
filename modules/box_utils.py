@@ -4,10 +4,10 @@ import numpy as np
 class MatchPrior(object):
     def __init__(self, priors, variances=[0.1, 0.2], seq_len=1, iou_threshold=0.5):
         self.priors = priors.clone()
-        self.priors_point_form = priors.clone()
-        # pdb.set_trace()
-        for s in range(seq_len):
-            self.priors_point_form[:,s*4:(s+1)*4] = point_form(priors[:,s*4:(s+1)*4])
+        # self.priors_point_form = priors.clone()
+        # # pdb.set_trace()
+        # for s in range(seq_len):
+        #     self.priors_point_form[:,s*4:(s+1)*4] = point_form(priors[:,s*4:(s+1)*4])
         self.variances = variances
         self.seq_len = seq_len
         self.iou_threshold = iou_threshold
@@ -28,7 +28,7 @@ class MatchPrior(object):
             ## get indexes of first frame in seq for each microtube
             gt_labels = gt_labels[inds]
             for s in range(self.seq_len):
-                seq_overlaps.append(jaccard(gt_boxes[inds+s, :], self.priors_point_form[:, s*4:(s+1)*4]))
+                seq_overlaps.append(jaccard(gt_boxes[inds+s, :], point_form(self.priors[:, s*4:(s+1)*4])))
 
             overlaps = seq_overlaps[0]
             ## Compute average overlap
@@ -61,6 +61,55 @@ class MatchPrior(object):
                                 # Shape: [num_priors, 4] -- encode the gt boxes for frame i
                 else:
                     temp = encode(matches, self.priors[:, s * 4:(s + 1) * 4], self.variances)
+                    loc = torch.cat([loc, temp], 1)  # shape: [num_priors x 4 * seql_len] : stacking the location targets for different frames
+
+            return conf, loc
+
+
+def match_priors(gt_boxes, gt_labels, priors, iou_threshold=0.5, variances=[0.1, 0.2], seq_len=1):
+            # pdb.set_trace()
+            # pdb.set_trace()
+            num_mt = int(gt_labels.size(0)/seq_len)
+            
+            # pdb.set_trace()
+            seq_overlaps =[]
+            inds = torch.LongTensor([m*seq_len for m in range(num_mt)])  
+            # print(inds, num_mt)
+            ## get indexes of first frame in seq for each microtube
+            gt_labels = gt_labels[inds]
+            for s in range(seq_len):
+                seq_overlaps.append(jaccard(gt_boxes[inds+s, :], point_form(priors[:, s*4:(s+1)*4])))
+
+            overlaps = seq_overlaps[0]
+            ## Compute average overlap
+            for s in range(seq_len-1):
+                overlaps = overlaps + seq_overlaps[s+1]
+            overlaps = overlaps/float(seq_len)
+            # (Bipartite Matching)
+            # [1,num_objects] best prior for each ground truth
+            best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+            # [1,num_priors] best ground truth for each prior
+            best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
+            best_truth_idx.squeeze_(0)
+            best_truth_overlap.squeeze_(0)
+            best_prior_idx.squeeze_(1)
+            best_prior_overlap.squeeze_(1)
+            best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
+            # ensure every gt matches with its prior of max overlap
+            for j in range(best_prior_idx.size(0)):
+                best_truth_idx[best_prior_idx[j]] = j
+
+            conf = gt_labels[best_truth_idx] + 1         # Shape: [num_priors]
+            conf[best_truth_overlap < iou_threshold] = 0  # label as background
+
+            for s in range(seq_len):
+                st = gt_boxes[inds + s, :]
+                matches = st[best_truth_idx]  # Shape: [num_priors,4]
+                if s == 0:
+                    loc = encode(matches, priors[:, s * 4:(s + 1) * 4], variances)  
+                                # Shape: [num_priors, 4] -- encode the gt boxes for frame i
+                else:
+                    temp = encode(matches, priors[:, s * 4:(s + 1) * 4], variances)
                     loc = torch.cat([loc, temp], 1)  # shape: [num_priors x 4 * seql_len] : stacking the location targets for different frames
 
             return conf, loc
@@ -253,7 +302,7 @@ def log_sum_exp(x):
 # Original author: Francisco Massa:
 # https://github.com/fmassa/object-detection.torch
 # Ported to PyTorch by Max deGroot (02/01/2017)
-def nms(boxes, scores, overlap=0.5, top_k=200):
+def nms(boxes, scores, overlap=0.5, top_k=20):
     """Apply non-maximum suppression at test time to avoid detecting too many
     overlapping bounding boxes for a given object.
     Args:

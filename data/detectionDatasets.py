@@ -21,13 +21,14 @@ coordinates are in range of [0, 1] normlised height and width
 import os , json
 import os.path
 import torch
-import pdb
+import pdb, time
 import torch.utils.data as data
 import cv2, pickle
 import numpy as np
 
 
-def make_object_lists(rootpath, dataset='voc', subsets=['train2007']):
+
+def make_object_lists(rootpath, subsets=['train2007']):
     with open(rootpath + 'annots.json', 'r') as f:
         db = json.load(f)
 
@@ -80,7 +81,7 @@ class Detection(data.Dataset):
         self.anno_transform = anno_transform
         self.ids = list()
         self.image_loader = LoadImage()
-        self.classes, self.ids, self.print_str = make_object_lists(self.root, self.dataset, image_sets)
+        self.classes, self.ids, self.print_str = make_object_lists(self.root, image_sets)
     
     def __len__(self):
         return len(self.ids)
@@ -93,32 +94,35 @@ class Detection(data.Dataset):
         labels  =  annot_info[3]
 
         img_name = '{:s}{:s}.jpg'.format(self.root, img_id)
+        # print(img_name)
         
+        # t0 = time.perf_counter()
         img = self.image_loader(img_name)
+        
+        # print('t1', time.perf_counter()-t0)
+        # t0 = time.perf_counter()
+        
         imgs = []
         imgs.append(img)
         imgs = np.asarray(imgs)
         # print(img_name, imgs.shape)
-
         imgs, boxes_, labels_ = self.transform(imgs, boxes, labels, 1)
-
+        # print('t2', time.perf_counter()-t0)
         target = np.hstack((boxes_, np.expand_dims(labels_, axis=1)))
         # imgs = imgs[:, :, :, (2, 1, 0)]
         imgs = imgs[0]
         # images = torch.from_numpy(imgs).permute(2, 0, 1)
         # print(imgs.size(), boxes_, labels_)
-        prior_labels, prior_gt_locations = torch.rand(1,2), torch.rand(2)
+        # prior_labels, prior_gt_locations = torch.rand(1,2), torch.rand(2)
         
-        if self.anno_transform:
-            prior_labels, prior_gt_locations = self.anno_transform(boxes_, labels_, len(labels_))
+        # if self.anno_transform:
+        #     prior_labels, prior_gt_locations = self.anno_transform(boxes_, labels_, len(labels_))
         
-        return imgs, target, prior_labels, prior_gt_locations, index
+        return imgs, target, index
 
 def custum_collate(batch):
     targets = []
     images = []
-    prior_labels = []
-    prior_gt_locations = []
     image_ids = []
     
     # fno = []
@@ -126,11 +130,9 @@ def custum_collate(batch):
     for sample in batch:
         images.append(sample[0])
         targets.append(torch.FloatTensor(sample[1]))
-        prior_labels.append(sample[2])
-        prior_gt_locations.append(sample[3])
-        image_ids.append(sample[4])
+        image_ids.append(sample[2])
     images = torch.stack(images, 0)
 
     # images, ground_truths, _ , _, num_mt, img_indexs
-    return images, targets, torch.stack(prior_labels), torch.stack(prior_gt_locations), image_ids
+    return images, targets, image_ids
 

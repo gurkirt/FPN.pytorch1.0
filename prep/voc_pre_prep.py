@@ -81,8 +81,9 @@ if __name__ == '__main__':
     annots = dict()
     for year, image_set in sets:
         set_str = image_set+year
-        print(set_str)
+        
         image_ids = open(base_dir+'VOC%s/ImageSets/Main/%s.txt'%(year, image_set)).read().strip().split()
+        print(set_str, len(image_ids))
         for image_id in image_ids:
             img_annos, w, h, image_name = convert_annotation(year, image_id)
             image_tags = dict()

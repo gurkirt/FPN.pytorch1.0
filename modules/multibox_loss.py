@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
-import torch, pdb
+import torch, pdb, time
 from modules import box_utils
-
 
 class MultiBoxLoss(nn.Module):
     def __init__(self, neg_pos_ratio=3):
@@ -13,7 +12,7 @@ class MultiBoxLoss(nn.Module):
         super(MultiBoxLoss, self).__init__()
         self.neg_pos_ratio = neg_pos_ratio
 
-    def forward(self, confidence, predicted_locations, labels, gt_locations):
+    def forward(self, confidence, predicted_locations, gts, priors):
         # cls_out, reg_out, prior_gt_labels, prior_gt_locations
         """
 
@@ -27,7 +26,25 @@ class MultiBoxLoss(nn.Module):
         """
         
         num_classes = confidence.size(2)
+        gt_locations = []
+        labels = []
         with torch.no_grad():
+            # torch.cuda.synchronize()
+            # t0 = time.perf_counter()
+            for b in range(len(gts)):
+                gt_boxes = gts[b][:,:4]
+                gt_labels = gts[b][:,4]
+                gt_labels = gt_labels.type(torch.cuda.LongTensor)
+
+                conf, loc = box_utils.match_priors(gt_boxes, gt_labels, priors)
+
+                labels.append(conf)
+                gt_locations.append(loc)
+            gt_locations = torch.stack(gt_locations, 0)
+            labels = torch.stack(labels, 0)
+            # torch.cuda.synchronize()
+            # t1 = time.perf_counter()
+            # print(gt_locations.size(), labels.size(), t1 - t0)
             # derived from cross_entropy=sum(log(p))
             loss = -F.log_softmax(confidence, dim=2)[:, :, 0]
             mask = box_utils.hard_negative_mining(loss, labels, self.neg_pos_ratio)

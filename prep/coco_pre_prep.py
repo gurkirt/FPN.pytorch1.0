@@ -65,7 +65,7 @@ def get_image_annots(filename, subset_str = 'train2017', annots=dict()):
 
     for anno in annos:
         image_id = anno['image_id']
-        str_id = str(image_id).zfill(12)
+        str_id = subset_str+'/{:012d}'.format(image_id)
         wh  = whs[str(image_id)]
         if str_id not in annots['annotations'].keys():
             annots['annotations'][str_id] = dict()
