@@ -33,8 +33,8 @@ import torch
 import shutil
 import torch.nn as nn
 import torch.optim as optim
-from modules.anchor_box_kmeans import anchorBox
-# from modules.anchor_box_base import anchorBox
+from modules.anchor_box_kmeans import anchorBox as kanchorBoxes
+from modules.anchor_box_base import anchorBox
 import torch.utils.data as data_utils
 from data import Detection, BaseTransform, custum_collate
 from data.augmentations import Augmentation
@@ -50,9 +50,9 @@ def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
 
-parser = argparse.ArgumentParser(description='Retinet with FPN as base with resnet Training')
-# version or add name to experiment
-parser.add_argument('--version', default='kmeansAR3', help='layer')
+parser = argparse.ArgumentParser(description='Training single stage FPN with OHEM, resnet as backbone')
+# anchor_type to be used in the experiment
+parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 # Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
 #  Name of the dataset only voc or coco are supported
@@ -144,14 +144,13 @@ def set_bn_eval(m):
         m.eval()
 
 def main():
-
     args.step_values = [int(val) for val in args.step_values.split(',')]
     args.loss_reset_step = 10
     args.print_step = 10
     args.dataset = args.dataset.lower()
     args.basenet = args.basenet.lower()
 
-    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}'.format(args.input_dim, args.version, args.dataset,
+    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}'.format(args.input_dim, args.anchor_type, args.dataset,
                                                           args.batch_size,
                                                           args.basenet,
                                                           int(args.lr * 100000))
@@ -173,7 +172,10 @@ def main():
 
     anchors = 'None'
     with torch.no_grad():
-        anchorbox = anchorBox(input_dim=args.input_dim, dataset=args.dataset)
+        if args.anchor_type == 'kmeans':
+            anchorbox = kanchorBox(input_dim=args.input_dim, dataset=args.dataset)
+        else:
+            anchorbox = anchorBox(input_dim=args.input_dim, dataset=args.dataset)
         anchors = anchorbox.forward()
         args.ar = anchorbox.ar
     
