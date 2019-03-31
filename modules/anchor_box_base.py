@@ -7,7 +7,7 @@ class anchorBox(object):
     """Compute anchorbox coordinates in center-offset form for each source
     feature map.
     """
-    def __init__(self, input_dim=300, feature_size = [75, 38, 19, 10, 5],
+    def __init__(self, anchor_type, input_dim=300, feature_size = [75, 38, 19, 10, 5],
                                        aspect_ratios =[0.5, 1 / 1., 1.5],
                                        scale_ratios = [1.,1.34, 1.67],
                                        dataset='all'):
@@ -20,9 +20,13 @@ class anchorBox(object):
         self.num_anchors = 0
         self.variance = [0.1, 0.2]
         self.feature_maps = feature_size
-        self.scale_ratios = scale_ratios
         self.aspect_ratios = aspect_ratios
+        self.scale_ratios = scale_ratios
         self.default_scale= [2.4, 2.8, 3, 3.2, 3.4]
+        if anchor_type != '9defined': # gives 3 anchors per scale
+            self.aspect_ratios = [0.54, 1 / 1., 1.45]
+            self.scale_ratios = [1.0, ]
+            self.default_scale= [2.8, 3, 3, 3.2, 3.4]
         # self.default_scale = 2.8
         print(self.default_scale)
 

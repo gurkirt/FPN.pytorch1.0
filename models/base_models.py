@@ -9,7 +9,7 @@ def base_models(modelname, model_dir, pretrained=True):
                       'resnet101': [3, 4, 23, 3], 'resent152': [3, 8, 36, 3]}
         model = resnetfpn(modelperms[modelname], modelname)
         if pretrained:
-            load_dict = torch.load(model_dir + 'weights/' + modelname+'.pth')
+            load_dict = torch.load(model_dir + modelname+'.pth')
             # print(load_dict.keys(), '\n\n', model.state_dict().keys())
             model.load_my_state_dict(load_dict)
 

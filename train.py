@@ -30,20 +30,21 @@ import argparse
 import datetime
 import numpy as np
 import torch
-import shutil
 import torch.nn as nn
 import torch.optim as optim
+import torch.utils.data as data_utils
+from torch.optim.lr_scheduler import MultiStepLR
+from modules import utils
 from modules.anchor_box_kmeans import anchorBox as kanchorBoxes
 from modules.anchor_box_base import anchorBox
-import torch.utils.data as data_utils
-from data import Detection, BaseTransform, custum_collate
-from data.augmentations import Augmentation
-from models.fpn import build_fpn
 from modules.multibox_loss import MultiBoxLoss
 from modules.evaluation import evaluate_detections
 from modules.box_utils import decode, nms
 from modules import  AverageMeter
-from torch.optim.lr_scheduler import MultiStepLR
+from data import Detection, BaseTransform, custum_collate
+from data.augmentations import Augmentation
+from models.fpn import build_fpn
+
 
 
 def str2bool(v):
@@ -82,6 +83,7 @@ parser.add_argument('--topk', default=50, type=int, help='topk for evaluation')
 
 # Progress logging
 parser.add_argument('--log_iters', default=True, type=str2bool, help='Print the loss at each iteration')
+parser.add_argument('--log_step', default=10, type=int, help='Log after k steps for text/Visdom/tensorboard')
 parser.add_argument('--tensorboard', default=False, type=str2bool, help='Use tensorboard for loss/evalaution visualization')
 parser.add_argument('--visdom', default=False, type=str2bool, help='Use visdom for loss/evalaution visualization')
 parser.add_argument('--vis_port', default=8098, type=int, help='Port for Visdom Server')
@@ -102,29 +104,31 @@ username = getpass.getuser()
 hostname = socket.gethostname()
 args.hostname = hostname
 args.user = username
-
+args.model_dir = args.data_root
 print('\n\n ', username, ' is using ', hostname, '\n\n')
 if username == 'gurkirt':
+    args.model_dir = '/mnt/mars-beta/global-models/pytorch-imagenet/'
     if hostname == 'mars':
         args.data_root = '/mnt/mars-fast/datasets/'
-        args.save_root = '/mnt/mercury-alpha/'
+        args.save_root = '/mnt/mars-gamma/'
         args.vis_port = 8097
     elif hostname in ['sun','jupiter']:
         args.data_root = '/mnt/mercury-fast/datasets/'
-        args.save_root = '/mnt/mercury-alpha/'
+        args.save_root = '/mnt/mars-gamma/'
         if hostname in ['sun']:
             args.vis_port = 8096
         else:
             args.vis_port = 8095
     elif hostname == 'mercury':
         args.data_root = '/mnt/mercury-fast/datasets/'
-        args.save_root = '/mnt/mercury-alpha/'
+        args.save_root = '/mnt/mars-gamma/'
         args.vis_port = 8098
     elif hostname.startswith('comp'):
         args.data_root = '/home/gurkirt/datasets/'
         args.save_root = '/home/gurkirt/cache/'
         args.vis_port = 8097
         visdom=False
+        args.model_dir = args.data_root+'weights/'
     else:
         raise('ERROR!!!!!!!! Specify directories')
 
@@ -145,8 +149,8 @@ def set_bn_eval(m):
 
 def main():
     args.step_values = [int(val) for val in args.step_values.split(',')]
-    args.loss_reset_step = 10
-    args.print_step = 10
+    # args.loss_reset_step = 10
+    args.log_step = 10
     args.dataset = args.dataset.lower()
     args.basenet = args.basenet.lower()
 
@@ -161,21 +165,15 @@ def main():
     if not os.path.isdir(args.save_root): # if save directory doesn't exist create it
         os.makedirs(args.save_root)
 
-    source_dir = args.save_root+'/source/'
-    if not os.path.isdir(source_dir):
-        os.system('mkdir -p ' + source_dir)
-    
-    for dirpath, dirs, files in os.walk('./', topdown=True):
-        for file in files:
-            if file.endswith('.py'): #fnmatch.filter(files, filepattern):
-                shutil.copy2(os.path.join(dirpath, file), source_dir)
+    source_dir = args.save_root+'/source/' # where to save the source
+    utils.copy_source(source_dir)
 
     anchors = 'None'
     with torch.no_grad():
         if args.anchor_type == 'kmeans':
-            anchorbox = kanchorBox(input_dim=args.input_dim, dataset=args.dataset)
+            anchorbox = kanchorBoxes(input_dim=args.input_dim, dataset=args.dataset)
         else:
-            anchorbox = anchorBox(input_dim=args.input_dim, dataset=args.dataset)
+            anchorbox = anchorBox(args.anchor_type, input_dim=args.input_dim, dataset=args.dataset)
         anchors = anchorbox.forward()
         args.ar = anchorbox.ar
     
@@ -204,7 +202,7 @@ def main():
     
     args.head_size = 256
     
-    net = build_fpn(args.basenet, args.data_root, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
+    net = build_fpn(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
     net = net.cuda()
     
     if args.ngpu>1:
@@ -289,7 +287,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                                   shuffle=True, pin_memory=True, collate_fn=custum_collate )
     val_data_loader = data_utils.DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers,
                                  shuffle=False, pin_memory=True, collate_fn=custum_collate)
-    itr_count = 0
+
     torch.cuda.synchronize()
     start = time.perf_counter()
     iteration = 0
@@ -337,7 +335,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
             batch_time.update(time.perf_counter() - start)
             start = time.perf_counter()
 
-            if iteration % args.print_step == 0 and iteration > 11:
+            if iteration % args.log_step == 0 and iteration > 11:
                 if args.visdom:
                     losses_list = [loc_losses.val, cls_losses.val, losses.val, loc_losses.avg, cls_losses.avg, losses.avg]
                     viz.line(X=torch.ones((1, 6)).cpu() * iteration,
@@ -356,16 +354,6 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
 
                 log_file.write(print_line+'\n')
                 print(print_line)
-                itr_count += 1
-
-                if itr_count % args.loss_reset_step == 0 and itr_count > 0:
-                    loc_losses.reset()
-                    cls_losses.reset()
-                    losses.reset()
-                    batch_time.reset()
-                    data_time.reset()
-                    print('Reset ', args.exp_name,' after', itr_count*args.print_step)
-                    itr_count = 0
 
 
             if (iteration % args.val_step == 0 or iteration == 5000) and iteration>10:
