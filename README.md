@@ -1,4 +1,10 @@
-# Single stage Feature Pyramid Network (FPN) with online hard example mining (OHEM)
+# FPN + OHEM
+
+It is code base for single stage Feature Pyramid Network (FPN) with online hard example mining (OHEM). 
+
+It is a pure [Pytorch 1.0](https://pytorch.org/) code, including preprocesing.
+
+## Introduction 
 
 This repository contains a single stage version of FPN present on [RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf).
 Objective to reproduce Table 1 with ResNet50 with OHEM.
@@ -9,6 +15,8 @@ Objective to reproduce Table 1 with ResNet50 with OHEM.
 
 ResNet is used as a backbone network (a) to build the pyramid features (b). 
 Each classification (c) and regression (d) subnet is made of 4 convolutional layers and finally a convolutional layer to predict the class scores and bounding box coordinated respectively.
+
+We freeze the batch normalisation layers of ResNet based backbone networks. 
 
 ## Loss function 
 We use multi-box loss function with online hard example mining (OHEM), similar to [SSD](https://arxiv.org/pdf/1512.02325.pdf).
@@ -36,7 +44,7 @@ Since the cluster centres and centred around the origin, we need to move the cen
 We performed clustering for `coco` and `voc` independently.
 
 ### Average IoU and Recall
-Here is the recall and average IoU obtained before and after cluster anchors.
+Here is the recall and average IoU obtained before and after clustering the anchors.
 
 Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % |
 |-------|:----: |:----:| :-----:  | :---:| :---:| :---:| :---: |
@@ -50,15 +58,24 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 | COCO |  Clustered   | 1    | 3   |  3     | 22K  |  0.65 | 89 |
 
 
-# It is getting ready, another couple of days: updated on 29th March
+## Performance
 
-We freeze the batch normalisation layers of  
+Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
+|-------| :----: | :----: | :-----:  | :---:|
+| VOC | ResNet50 | Pre-defined | 9 | 78.1 |
+| VOC | ResNet50 | Pre-defined | 3 | training |
+| VOC | ResNet50 | Clustered | 3 | 79.5 |
 
-## Performance map@0.5 ResNet50
-
-Kmean 3 anchors per scale: 79.7
+#### Results of COCO are coming soon!
  
-## Results will be out soon on coco as well
+## Details
+- No max pooling in resnet after first convolutinal layer
+- Input image size is `300`.
+- Resulting feature map size on 5 pyramid levels is `[75, 38, 19, 10, 5]` 
+- VOC models are trained for 70K iterations with intial learning rate 0.0002 
+- Learning rate dropped after 50K iterations in case of VOC
+
+
 
 ## Installation
 - We used anaconda 3.7 as python distribution
@@ -66,7 +83,7 @@ Kmean 3 anchors per scale: 79.7
 - visdom and tensorboardX if you want to use the visualisation of loss and evaluation
   -- if do want to use them set visdom/tensorboard flag equal to true while training 
   -- and configure the visdom port in arguments in  `train.py.`
-- OpenCV is need 
+- OpenCV is needed as well, install it using `conda install opencv`
 
 ## TRAINING
 Please follow dataset preparation [README](https://github.com/gurkirt/FPN.pytorch/tree/master/prep) from `prep` folder of this repo.
@@ -78,4 +95,22 @@ To train run the following command.
 
 It will use all the visible GPUs. You can append `CUDA_VISIBLE_DEVICES=gpuids-comma-separated` at the beginning of the above command to mask certain GPUs. We used two GPU machine to run these experiments.
 
-Also, check the arguments in `train.py` to adjust your training process.
+Please check the arguments in `train.py` to adjust the training process to your liking.
+
+## Evaluation
+Model is evalaueted and saved after each `10K` iterations. 
+
+mAP@0.5 is computed after every 10K iterations and at the end.
+
+Demo script and coco evaluation protocol will be updated in coming week.
+
+## Training on custom dataset.
+You can take inspration form data prepration scripts from `prep` directory, which we used to pre-process VOC and COCO dataset.
+
+Also checkout [README](https://github.com/gurkirt/FPN.pytorch/tree/master/prep) in `prep` directory.
+
+If you want to use clustered anchors then you can use from either of existing anchors or cluster the anchors yourself using `kmeans_for_anchors.py`.
+ 
+## References
+[RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf)
+[Our realtime-action-detection (ROAD) system implemetation](https://github.com/gurkirt/realtime-action-detection)

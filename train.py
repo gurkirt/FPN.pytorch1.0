@@ -2,7 +2,7 @@
 """ Adapted from:
 
     Modification by: Gurkirt Singh
-    Modification started: 13th March
+    Modification started: 13th March 2019
 
     Parts of this files are from many github repos
     @longcw faster_rcnn_pytorch: https://github.com/longcw/faster_rcnn_pytorch
@@ -11,7 +11,6 @@
     https://github.com/amdegroot/ssd.pytorch
 
     Futher updates from 
-    https://github.com/qfgaohao/pytorch-ssd
     https://github.com/gurkirt/realtime-action-detection
 
     maybe more but that is where I got these from

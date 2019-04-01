@@ -1,3 +1,14 @@
+
+"""
+    Author: Gurkirt Singh
+    Purpose: Check number of anchor boxes
+    Please don't remove above credits and 
+    give star to this repo if it has been useful to you
+
+    Licensed under The MIT License [see LICENSE for details]
+    
+"""
+
 import math
 
 anchor_areas = [75, 38, 19, 10, 5]  # p3 -> p7

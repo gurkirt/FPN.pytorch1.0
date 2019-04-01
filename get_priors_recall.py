@@ -1,4 +1,16 @@
 
+"""
+    Author: Gurkirt Singh
+    Purpuse: si to get recall and avergage IoU 
+    for anchor boxes and train dataset 
+    
+    Please don't remove above credits and 
+    give star to this repo if it has been useful to you
+
+    Licensed under The MIT License [see LICENSE for details]
+    
+"""
+
 from modules.box_utils import point_form, jaccard
 from modules.anchor_box_base import anchorBox
 import torch

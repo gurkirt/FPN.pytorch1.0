@@ -1,3 +1,13 @@
+"""
+    Author: Gurkirt Singh
+    Purpuse of this file is to compute anchor cluster using training data and 
+    initialisation using anchor 
+    Please don't remove above credits and 
+    give star to this repo if it has been useful to you
+
+    Licensed under The MIT License [see LICENSE for details]
+    
+"""
 
 from modules.box_utils import point_form, jaccard
 from modules.anchor_box_base import anchorBox
@@ -10,13 +20,11 @@ base_dir = '/home/gurkirt/datasets/'
 
 input_dim = 300
 feature_size = [75, 38, 19, 10, 5]
-# input_dim = 224
-# feature_size = [75, 38, 19, 10, 5]
 thresh = 0.5
 
 def  get_unique_anchors(scales):
         # print(print_str)
-        anchorbox = anchorBox(input_dim=input_dim, scale_ratios=scales)
+        anchorbox = anchorBox('defined3', input_dim=input_dim, scale_ratios=scales)
         anchors = anchorbox.forward()
         print(anchors.size())
         unique_anchors = anchors.numpy()
