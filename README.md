@@ -38,9 +38,17 @@ We performed clustering for `coco` and `voc` independently.
 ### Average IoU and Recall
 Here is the recall and average IoU obtained before and after cluster anchors.
 
-Dataset | SR    | AR   | #Anchors/level | Total | Isclustering | Avergae IoU % | Recall % |
-|-------|:----: |:----:| :-----:           | :---:| :---:| :---:| :---: |
-| COCO |  3    | 3   |  9     | 67K | [] |  72 | 85 |
+Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % |
+|-------|:----: |:----:| :-----:  | :---:| :---:| :---:| :---: |
+| VOC |  Pre-defined | 3    | 3   |  9     | 67K  |  0.78 | 96 |
+| VOC |  Pre-defined | 2    | 3   |  6     | 44K  |  0.76 | 95 |
+| VOC |  Pre-defined | 1    | 3   |  3     | 22K  |  0.66 | 88 |
+| VOC |  Clustered   | 1    | 3   |  3     | 22K  |  0.74 | 98 |
+| COCO |  Pre-defined | 3    | 3   |  9     | 67K  |  0.72 | 85 |
+| COCO |  Pre-defined | 2    | 3   |  6     | 44K  |  0.69 | 85 |
+| COCO |  Pre-defined | 1    | 3   |  3     | 22K  |  0.61 | 77 |
+| COCO |  Clustered   | 1    | 3   |  3     | 22K  |  0.65 | 89 |
+
 
 # It is getting ready, another couple of days: updated on 29th March
 
