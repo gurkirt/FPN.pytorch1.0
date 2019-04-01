@@ -424,7 +424,7 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
     det_boxes = [[] for _ in range(num_classes-1)]
     gt_boxes = []
     print_time = True
-    val_step = 5
+    val_step = 20
     count = 0
     torch.cuda.synchronize()
     ts = time.perf_counter()

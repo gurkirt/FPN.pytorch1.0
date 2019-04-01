@@ -51,23 +51,23 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 | VOC |  Pre-defined | 3    | 3   |  9     | 67K  |  0.78 | 96 |
 | VOC |  Pre-defined | 2    | 3   |  6     | 44K  |  0.76 | 95 |
 | VOC |  Pre-defined | 1    | 3   |  3     | 22K  |  0.66 | 88 |
-| VOC |  Clustered   | 1    | 3   |  3     | 22K  |  0.74 | 98 |
+| VOC |  Clustered   | 1    | 3   |  3     | 22K  |  0.74 | 97 |
 | COCO |  Pre-defined | 3    | 3   |  9     | 67K  |  0.72 | 85 |
 | COCO |  Pre-defined | 2    | 3   |  6     | 44K  |  0.69 | 85 |
 | COCO |  Pre-defined | 1    | 3   |  3     | 22K  |  0.61 | 77 |
-| COCO |  Clustered   | 1    | 3   |  3     | 22K  |  0.65 | 89 |
+| COCO |  Clustered   | 1    | 3   |  3     | 22K  |  0.65 | 87 |
 
 
 ## Performance
 
-Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
-|-------| :----: | :----: | :-----:  | :---:|
-| VOC | ResNet50 | Pre-defined | 9 | 78.1 |
-| VOC | ResNet50 | Pre-defined | 3 | 77.2 |
-| VOC | ResNet50 | Clustered | 3 | 79.5 |
-| COCO | ResNet50 | Pre-defined | 9 | training |
-| VOC | ResNet50 | Pre-defined | 3 | up-next |
-| VOC | ResNet50 | Clustered | 3 | training |
+Dataset | Backbone | Type | #Anchors | Batch-Size | lr | #iter | #GPUs| mAP@0.5 % | 
+|-------| :----: | :----: | :-----:  |  :----: | :----: | :-----:  | :---:|
+| VOC | ResNet50 | Pre-defined | 9 | 16 | 0.0002 | 70K  | 2 | 78.1 |
+| VOC | ResNet50 | Pre-defined | 3 | 16 | 0.0002 |  70K |  2 | 77.2 |
+| VOC | ResNet50 | Clustered | 3 | 16 | 0.0002 |  70K |  2 | 79.5 |
+| COCO | ResNet50 | Pre-defined | 9 | 32 | 0.0005 |  -- |  4 | training |
+| COCO | ResNet50 | Pre-defined | 3 | 32 | 0.0005 | -- | 4 | up-next |
+| COCO | ResNet50 | Clustered | 3 | 32 | 0.0005 | -- |  4 | up-next |
 
 #### Results of COCO are coming soon!
  
@@ -75,9 +75,8 @@ Dataset | Backbone | Type | #Anchors | mAP@0.5 % |
 - Max-pooling in resnet after first convolutional layer is not used
 - Input image size is `300`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
-- VOC models are trained for 70K iterations with initial learning rate 0.0002 
 - Learning rate dropped after 50K iterations in case of VOC
-- Batch size of 16 is used in case of VOC
+- Learning rate dropped after 120K iterations in case of COCO
 
 
 

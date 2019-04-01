@@ -20,7 +20,7 @@ class anchorBox(object):
         self.aspect_ratios = aspect_ratios
         self.scale_ratios = scale_ratios
         self.default_scale= [2.4, 2.8, 3, 3.2, 3.4]
-        if anchor_type not in ['9defined']: # gives 3 anchors per scale
+        if anchor_type not in ['pdf9']: # gives 3 anchors per scale # default ps pre-defined 9
             self.aspect_ratios = [0.54, 1 / 1., 1.45]
             self.scale_ratios = [1.0]
             self.default_scale= [2.8, 3, 3, 3.2, 3.4]

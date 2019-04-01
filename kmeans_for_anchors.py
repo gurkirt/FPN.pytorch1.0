@@ -15,8 +15,12 @@ import torch, pdb
 import numpy as np
 from data.detectionDatasets import make_object_lists
 
-base_dir = '/home/gurkirt/datasets/'
-# base_dir = '/mnt/mercury-fast/datasets/'
+import argparse
+
+parser = argparse.ArgumentParser(description='prepare VOC dataset')
+# anchor_type to be used in the experiment
+parser.add_argument('--base_dir', default='/home/gurkirt/datasets/voc/', help='Location to root directory for the dataset') 
+# /mnt/mars-fast/datasets/
 
 input_dim = 300
 feature_size = [75, 38, 19, 10, 5]
@@ -33,7 +37,7 @@ def  get_unique_anchors(scales):
         anchors = np.unique(unique_anchors, axis=0)
         return torch.from_numpy(anchors)
 
-def get_dataset_boxes(dataset, train_sets):
+def get_dataset_boxes(base_dir, dataset, train_sets):
 
         classes, trainlist, print_str = make_object_lists(base_dir+dataset+'/', train_sets)
         count = 0
@@ -65,7 +69,7 @@ def get_center(b_idx, boxes, c):
 def get_area(centers):
         return centers[:,2]*centers[:,3]
 
-def kmean_whs():
+def kmean_whs(base_dir):
     for dataset in ['voc','coco']:
         scales = [1.,]
         if dataset == 'coco':
@@ -81,7 +85,7 @@ def kmean_whs():
         centers = unique_anchors.clone()
         print(unique_anchors.size())
         numc = centers.size(0)
-        boxes = get_dataset_boxes(dataset, train_sets)
+        boxes = get_dataset_boxes(base_dir, dataset, train_sets)
         print('Initial centers\n', centers, boxes.size())
         print('Areas of each:::', get_area(centers))
         overlaps = jaccard(boxes, centers)
@@ -109,7 +113,7 @@ def kmean_whs():
                         100.0*torch.sum(all_recall>thresh)/count, torch.mean(all_recall)))
 
         # print(centers)
-        boxes = get_dataset_boxes(dataset, val_sets)
+        boxes = get_dataset_boxes(base_dir, dataset, val_sets)
         overlaps = jaccard(boxes, centers)
         all_recall, best_center_idx = overlaps.max(1, keepdim=True)
         count = all_recall.size(0)
@@ -119,4 +123,5 @@ def kmean_whs():
         
 
 if __name__ == '__main__':
-    kmean_whs()
+    args = parser.parse_args()
+    kmean_whs(args.base_dir)
