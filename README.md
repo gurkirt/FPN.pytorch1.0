@@ -61,7 +61,7 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 ## Performance
 
 Dataset | Backbone | Type | #Anchors | Batch-Size | lr | #iter | #GPUs| mAP@0.5 % | 
-|-------| :----: | :----: | :-----:  |  :----: | :----: | :-----:  | :---:|
+|----| :---: | :---: | :---:  |  :---: | :---: | :---:  | :---:  | :---:|
 | VOC | ResNet50 | Pre-defined | 9 | 16 | 0.0002 | 70K  | 2 | 78.1 |
 | VOC | ResNet50 | Pre-defined | 3 | 16 | 0.0002 |  70K |  2 | 77.2 |
 | VOC | ResNet50 | Clustered | 3 | 16 | 0.0002 |  70K |  2 | 79.5 |
