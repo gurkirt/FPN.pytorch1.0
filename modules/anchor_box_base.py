@@ -14,21 +14,21 @@ class anchorBox(object):
         super(anchorBox, self).__init__()
         # self.type = cfg.name
         self.image_size = input_dim
-        # number of anchors for feature map location (either 4 or 6)
-        self.anchor_boxes = len(aspect_ratios)*len(scale_ratios)
-        self.ar = self.anchor_boxes
         self.num_anchors = 0
         self.variance = [0.1, 0.2]
         self.feature_maps = feature_size
         self.aspect_ratios = aspect_ratios
         self.scale_ratios = scale_ratios
         self.default_scale= [2.4, 2.8, 3, 3.2, 3.4]
-        if anchor_type != '9defined': # gives 3 anchors per scale
+        if anchor_type not in ['9defined']: # gives 3 anchors per scale
             self.aspect_ratios = [0.54, 1 / 1., 1.45]
-            self.scale_ratios = [1.0, ]
+            self.scale_ratios = [1.0]
             self.default_scale= [2.8, 3, 3, 3.2, 3.4]
         # self.default_scale = 2.8
-        print(self.default_scale)
+        
+        self.anchor_boxes = len(self.aspect_ratios)*len(self.scale_ratios)
+        self.ar = self.anchor_boxes
+        print(self.scale_ratios, anchor_type, self.ar)
 
     def forward(self):
         anchors = []
