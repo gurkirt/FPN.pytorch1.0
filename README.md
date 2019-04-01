@@ -40,7 +40,7 @@ Here is the recall and average IoU obtained before and after cluster anchors.
 
 Dataset | SR    | AR   | #Anchors/level | Total | Isclustering | Avergae IoU % | Recall % |
 |-------|:----: |:----:| :-----:           | :---:| :---:| :---:| :---: |
-| COCO |  3    | 3   |  9     | 67K | [ ] |  72 | 85 |
+| COCO |  3    | 3   |  9     | 67K | [x] |  72 | 85 |
 
 # It is getting ready, another couple of days: updated on 29th March
 
