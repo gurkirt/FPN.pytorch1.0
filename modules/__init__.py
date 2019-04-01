@@ -1,6 +1,6 @@
 class AverageMeter(object):
     """Computes and stores the average and current value"""
-    def __init__(self, momentum=0.85):
+    def __init__(self, momentum=0.95):
         self.momentum = momentum
         self.reset()
 
