@@ -365,7 +365,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                 print(print_line)
 
 
-            if (iteration % args.val_step == 0 or iteration == 5000) and iteration>10:
+            if (iteration % args.val_step == 0 or iteration == 5000 or iteration == args.max_iter) and iteration>10:
                 torch.cuda.synchronize()
                 tvs = time.perf_counter()
                 print('Saving state, iter:', iteration)
