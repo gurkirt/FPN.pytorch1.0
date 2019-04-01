@@ -71,7 +71,7 @@ def kmean_whs():
         if dataset == 'coco':
                 train_sets = ['train2017']
                 val_sets = ['val2017']
-                max_itr = 3
+                max_itr = 10
         else:
                 train_sets = ['train2007', 'val2007', 'train2012', 'val2012']
                 val_sets = ['test2007']

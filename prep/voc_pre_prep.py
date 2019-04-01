@@ -1,3 +1,12 @@
+
+"""
+    Author: Gurkirt Singh
+    Purpose: resave the annotations in desired (json) format
+
+    Licensed under The MIT License [see LICENSE for details]
+    
+"""
+
 import xml.etree.ElementTree as ET
 import pickle
 import os
@@ -5,14 +14,16 @@ import cv2
 import pdb
 from os import listdir, getcwd
 from os.path import join
+import argparse
+
+parser = argparse.ArgumentParser(description='prepare VOC dataset')
+# anchor_type to be used in the experiment
+parser.add_argument('--base_dir', default='/home/gurkirt/datasets/voc/', help='Location to root directory for the dataset') 
+# /mnt/mars-fast/datasets/
 
 sets = [('2012', 'train'), ('2012', 'val'), ('2007', 'train'), ('2007', 'val'), ('2007', 'test')]
 # sets = [('2007', 'train'), ('2007', 'val'), ('2007', 'test')]
 classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
-
-## Specify your base directory
-## it is path to VOC dataset's home folder 
-base_dir = '/home/gurkirt/datasets/voc/'
 
 visuals = False
 
@@ -26,7 +37,7 @@ def convert(size, box):
     ymax = box[3]*dh
     return (xmin,ymin,xmax,ymax)
 
-def convert_annotation(year, image_id):
+def convert_annotation(base_dir, year, image_id):
     '''Convert annotations to text format xmin ymin xmax ymax label; xmin ymin ......'''
     in_file = open(base_dir+'VOC%s/Annotations/%s.xml'%(year, image_id))
 
@@ -77,15 +88,16 @@ def convert_annotation(year, image_id):
     return annos, w, h, image_name
 
 if __name__ == '__main__':
+    args = parser.parse_args()
 
     annots = dict()
     for year, image_set in sets:
         set_str = image_set+year
         
-        image_ids = open(base_dir+'VOC%s/ImageSets/Main/%s.txt'%(year, image_set)).read().strip().split()
+        image_ids = open(args.base_dir+'VOC%s/ImageSets/Main/%s.txt'%(year, image_set)).read().strip().split()
         print(set_str, len(image_ids))
         for image_id in image_ids:
-            img_annos, w, h, image_name = convert_annotation(year, image_id)
+            img_annos, w, h, image_name = convert_annotation(args.base_dir, year, image_id)
             image_tags = dict()
             image_tags['wh'] = [w, h]
             image_tags['annos'] = img_annos
@@ -108,5 +120,5 @@ if __name__ == '__main__':
     print('Avergage number of annotation per image are ', float(ac)/ic)
 
     import json
-    with open(base_dir + 'annots.json', 'w') as f:
+    with open(args.base_dir + 'annots.json', 'w') as f:
         json.dump(db,f)

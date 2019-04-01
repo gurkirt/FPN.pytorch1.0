@@ -1,7 +1,21 @@
+
+"""
+    Author: Gurkirt Singh
+    Purpose: resave the annotations in desired format
+
+    Licensed under The MIT License [see LICENSE for details]
+    
+"""
+
 import json, os, pdb, cv2
 
-basedir = '/home/gurkirt/datasets/coco/'
-# basedir = '/Users/gurkirt/Desktop/skynet/datasets/coco/'
+import argparse
+
+parser = argparse.ArgumentParser(description='prepare VOC dataset')
+# anchor_type to be used in the experiment
+parser.add_argument('--base_dir', default='/home/gurkirt/datasets/voc/', help='Location to root directory for the dataset') 
+# /mnt/mars-fast/datasets/
+
 visuals = False
 
 def get_wh(images):
@@ -28,7 +42,6 @@ def convert(size, box):
     return (xmin,ymin,xmax,ymax)
 
 def get_coco_classes(anno_file):
-    # anno_file = basedir + 'instances_val2017.json'
     with open(anno_file, 'r') as f:
         obj = json.load(f)
     cls_dict = obj['categories']
@@ -54,7 +67,7 @@ def get_coco_classes(anno_file):
 
     return cls_list, super_list, id_list, idsto
 
-def get_image_annots(filename, subset_str = 'train2017', annots=dict()):
+def get_image_annots(base_dir, filename, subset_str = 'train2017', annots=dict()):
 
     with open(filename, 'r') as f:
         obj = json.load(f)
@@ -80,7 +93,7 @@ def get_image_annots(filename, subset_str = 'train2017', annots=dict()):
 
         
         if visuals:
-            imagename = basedir+subset_str+'/{:012d}.jpg'.format(image_id)
+            imagename = base_dir+subset_str+'/{:012d}.jpg'.format(image_id)
             print(imagename)
             image = cv2.imread(imagename)
             assert wh[0] == image.shape[1] and wh[1] == image.shape[0]
@@ -109,8 +122,10 @@ def get_image_annots(filename, subset_str = 'train2017', annots=dict()):
     return annots
 
 if __name__ == '__main__':
-    train_filename = basedir + 'instances_train2017.json'
-    val_filename = basedir + 'instances_val2017.json'
+    args = parser.parse_args()
+
+    train_filename = args.base_dir + 'annotations/instances_train2017.json'
+    val_filename = args.base_dir + 'annotations/instances_val2017.json'
     
     cls_list, super_list, id_list, idstolabels = get_coco_classes(val_filename)
 
@@ -121,8 +136,8 @@ if __name__ == '__main__':
     db['idstolabels'] = idstolabels
     db['annotations'] = dict()
 
-    db = get_image_annots(val_filename, 'val2017', db)
-    db = get_image_annots(train_filename, 'train2017', db)
+    db = get_image_annots(args.base_dir, val_filename, 'val2017', db)
+    db = get_image_annots(args.base_dir, train_filename, 'train2017', db)
     ic = 0
     ac = 0
     for img_id in db['annotations'].keys():
@@ -132,7 +147,7 @@ if __name__ == '__main__':
         ac += num_a
         
     print('Avergage number of annotation per image are ', float(ac)/ic)
-    with open(basedir + 'annots.json', 'w') as f:
+    with open(args.base_dir + 'annots.json', 'w') as f:
         json.dump(db,f)
 
      

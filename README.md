@@ -63,13 +63,16 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
 |-------| :----: | :----: | :-----:  | :---:|
 | VOC | ResNet50 | Pre-defined | 9 | 78.1 |
-| VOC | ResNet50 | Pre-defined | 3 | training |
+| VOC | ResNet50 | Pre-defined | 3 | 77.2 |
 | VOC | ResNet50 | Clustered | 3 | 79.5 |
+| COCO | ResNet50 | Pre-defined | 9 | training |
+| VOC | ResNet50 | Pre-defined | 3 | up-next |
+| VOC | ResNet50 | Clustered | 3 | training |
 
 #### Results of COCO are coming soon!
  
 ## Details
-- No max pooling in resnet after first convolutional layer
+- Max-pooling in resnet after first convolutional layer is not used
 - Input image size is `300`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
 - VOC models are trained for 70K iterations with initial learning rate 0.0002 

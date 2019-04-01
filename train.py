@@ -70,6 +70,9 @@ parser.add_argument('--step_values', default='60000,90000', type=str, help='Chna
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
 
+# Freeze batch normlisatio layer or not 
+parser.add_argument('--bn', default=0, type=int, help='if 0 freeze or else keep updating bn layers')
+
 # Loss function matching threshold
 parser.add_argument('--jaccard_threshold', default=0.5, type=float, help='Min Jaccard index for matching')
 
@@ -97,6 +100,7 @@ parser.add_argument('--save_root', default='/mnt/mercury-fast/datasets/', help='
 
 ## Parse arguments
 args = parser.parse_args()
+
 import socket
 import getpass
 username = getpass.getuser()
@@ -106,7 +110,7 @@ args.user = username
 args.model_dir = args.data_root
 print('\n\n ', username, ' is using ', hostname, '\n\n')
 if username == 'gurkirt':
-    args.model_dir = '/mnt/mars-beta/global-models/pytorch-imagenet/'
+    args.model_dir = '/mnt/mars-gamma/global-models/pytorch-imagenet/'
     if hostname == 'mars':
         args.data_root = '/mnt/mars-fast/datasets/'
         args.save_root = '/mnt/mars-gamma/'
@@ -152,11 +156,16 @@ def main():
     args.log_step = 10
     args.dataset = args.dataset.lower()
     args.basenet = args.basenet.lower()
+    
+    args.bn = abs(args.bn) # 0 freeze or else use bn
+    if args.bn>0:
+        args.bn = 1 # update bn layer set the flag to 1
 
-    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}'.format(args.input_dim, args.anchor_type, args.dataset,
+    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, args.anchor_type, args.dataset,
                                                           args.batch_size,
                                                           args.basenet,
-                                                          int(args.lr * 100000))
+                                                          int(args.lr * 100000),
+                                                          args.bn)
 
     args.save_root += args.dataset+'/'
     args.save_root = args.save_root+'cache/'+args.exp_name+'/'
@@ -232,7 +241,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
     log_file.write(str(net))
 
     net.train()
-    net.module.base_net.apply(set_bn_eval)
+    if args.bn == 0:
+        net.module.base_net.apply(set_bn_eval)
 
     # loss counters
     batch_time = AverageMeter()
@@ -389,8 +399,12 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                         win=val_lot,
                         update='append'
                             )
-                net.train() # Switch net back to training mode
-                net.module.base_net.apply(set_bn_eval)
+                
+                net.train() 
+                # Switch net back to training mode
+                
+                if args.bn == 0:
+                    net.module.base_net.apply(set_bn_eval)
 
                 torch.cuda.synchronize()
                 t0 = time.perf_counter()
