@@ -1,235 +1,218 @@
-"""Adapted from:
-    @longcw faster_rcnn_pytorch: https://github.com/longcw/faster_rcnn_pytorch
-    @rbgirshick py-faster-rcnn https://github.com/rbgirshick/py-faster-rcnn
-    Which was adopated by: Ellis Brown, Max deGroot
-    https://github.com/amdegroot/ssd.pytorch
+""" 
+    Adapted from:
 
-    Further:
-    Updated by Gurkirt Singh for ucf101-24 dataset
+    Modification by: Gurkirt Singh
+    Modification started: 2nd April 2019
+
+    large parts of this files are from many github repos
+    mainly adopted from
+    https://github.com/gurkirt/realtime-action-detection
+
+    Please don't remove above credits and give star to these repos
+
     Licensed under The MIT License [see LICENSE for details]
-
+    
 """
-
-import torch
-import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
-from data import AnnotationTransform, ActionDetection, BaseTransform, CLASSES, detection_collate, v2
-from models.fpn import build_ssd
-import torch.utils.data as data
-from layers.box_utils import decode, nms
-from utils.evaluation import evaluate_detections
-import os, time
+import os
+import sys
+import time
+import socket
+import getpass 
 import argparse
+import datetime
 import numpy as np
-import scipy.io as sio # to save detection as mat files
-cfg = v2
-
+import torch
+import torch.nn as nn
+import torch.utils.data as data_utils
+from modules import utils
+from modules.anchor_box_kmeans import anchorBox as kanchorBoxes
+from modules.anchor_box_base import anchorBox
+from modules.multibox_loss import MultiBoxLoss
+from modules.evaluation import evaluate_detections
+from modules.box_utils import decode, nms
+from modules import  AverageMeter
+from data import Detection, BaseTransform, custum_collate
+from models.fpn import build_fpn
+from train import validate
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
-parser = argparse.ArgumentParser(description='Single Shot MultiBox Detector Training')
-parser.add_argument('--version', default='v2', help='conv11_2(v2) or pool6(v1) as last layer')
-parser.add_argument('--basenet', default='vgg16_reducedfc.pth', help='pretrained base model')
-parser.add_argument('--dataset', default='ucf24', help='pretrained base model')
-parser.add_argument('--ssd_dim', default=300, type=int, help='Input Size for SSD') # only support 300 now
-parser.add_argument('--use_bg', default=False, type=str2bool, help='If to use bground frames')
-parser.add_argument('--input_type', default='rgb', type=str, help='INput tyep default rgb can take flow as well')
-parser.add_argument('--input_frames', default=1, type=int, help='Number of input frame, default for rgb is 1')
-parser.add_argument('--jaccard_threshold', default=0.5, type=float, help='Min Jaccard index for matching')
+parser = argparse.ArgumentParser(description='Training single stage FPN with OHEM, resnet as backbone')
+# anchor_type to be used in the experiment
+parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
+# Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
+parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
+#  Name of the dataset only voc or coco are supported
+parser.add_argument('--dataset', default='voc', help='pretrained base model')
+# Input size of image onlye 300 is supprted at the moment 
+parser.add_argument('--input_dim', default=300, type=int, help='Input Size for SSD')
+#  data loading argumnets
 parser.add_argument('--batch_size', default=32, type=int, help='Batch size for training')
-parser.add_argument('--resume', default=None, type=str, help='Resume from checkpoint')
-parser.add_argument('--num_workers', default=0, type=int, help='Number of workers used in dataloading')
-parser.add_argument('--max_iter', default=120000, type=int, help='Number of training iterations')
-parser.add_argument('--cuda', default=True, type=str2bool, help='Use cuda to train model')
-parser.add_argument('--ngpu', default=1, type=int, help='Use cuda to train model')
-parser.add_argument('--lr', '--learning-rate', default=0.00099, type=float, help='initial learning rate')
-parser.add_argument('--visdom', default=False, type=str2bool, help='Use visdom to for loss visualization')
-parser.add_argument('--data_root', default='/mnt/mars-fast/datasets/', help='Location of VOC root directory')
-parser.add_argument('--save_root', default='/mnt/mars-alpha/', help='Location to save checkpoint models')
+parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')
+# optimiser hyperparameters
+parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
+parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
+parser.add_argument('--step_values', default='60000,90000', type=str, help='Chnage the lr @')
+# Freeze batch normlisatio layer or not 
+parser.add_argument('--bn', default=0, type=int, help='if 0 freeze or else keep updating bn layers')
+
+# Evaluation hyperparameters
+parser.add_argument('--model_path', default='', type=str, help='Path to model directory')
+parser.add_argument('--eval_iters', default='150000,', type=str, help='Chnage the lr @')
+parser.add_argument('--val_step', default=10000, type=int, help='Number of training iterations before evaluation')
 parser.add_argument('--iou_thresh', default=0.5, type=float, help='Evaluation threshold')
-parser.add_argument('--conf_thresh', default=0.1, type=float, help='Confidence threshold for evaluation')
+parser.add_argument('--conf_thresh', default=0.001, type=float, help='Confidence threshold for evaluation')
 parser.add_argument('--nms_thresh', default=0.45, type=float, help='NMS threshold')
-parser.add_argument('--topk', default=5, type=int, help='topk for evaluation')
+parser.add_argument('--topk', default=50, type=int, help='topk for evaluation')
 
+# Progress logging
+parser.add_argument('--log_iters', default=True, type=str2bool, help='Print the loss at each iteration')
+parser.add_argument('--log_step', default=10, type=int, help='Log after k steps for text/Visdom/tensorboard')
+
+# Program arguments
+parser.add_argument('--man_seed', default=1, type=int, help='manualseed for reproduction')
+parser.add_argument('--ngpu', default=1, type=int, help='If  more than then use all visible GPUs by default only one GPU used ') 
+# Use CUDA_VISIBLE_DEVICES=0,1,4,6 to selct GPUs to use
+parser.add_argument('--data_root', default='/mnt/mercury-fast/datasets/', help='Location to root directory fo dataset') # /mnt/mars-fast/datasets/
+parser.add_argument('--save_root', default='/mnt/mercury-fast/datasets/', help='Location to save checkpoint models') # /mnt/sun-gamma/datasets/
+
+## Parse arguments
 args = parser.parse_args()
-CLASSES = CLASSES[args.dataset]
 
-if args.cuda and torch.cuda.is_available():
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
-else:
-    torch.set_default_tensor_type('torch.FloatTensor')
+import socket
+import getpass
+username = getpass.getuser()
+hostname = socket.gethostname()
+args.hostname = hostname
+args.user = username
+args.model_dir = args.data_root
+print('\n\n ', username, ' is using ', hostname, '\n\n')
+
+if username == 'gurkirt':
+    args.model_dir = '/mnt/mars-gamma/global-models/pytorch-imagenet/'
+    if hostname == 'mars':
+        args.data_root = '/mnt/mars-fast/datasets/'
+        args.save_root = '/mnt/mars-gamma/'
+        args.vis_port = 8097
+    elif hostname in ['sun','jupiter']:
+        args.data_root = '/mnt/mercury-fast/datasets/'
+        args.save_root = '/mnt/mars-gamma/'
+        if hostname in ['sun']:
+            args.vis_port = 8096
+        else:
+            args.vis_port = 8095
+    elif hostname == 'mercury':
+        args.data_root = '/mnt/mercury-fast/datasets/'
+        args.save_root = '/mnt/mars-gamma/'
+        args.vis_port = 8098
+    elif hostname.startswith('comp'):
+        args.data_root = '/home/gurkirt/datasets/'
+        args.save_root = '/home/gurkirt/cache/'
+        args.vis_port = 8097
+        visdom=False
+        args.model_dir = args.data_root+'weights/'
+    else:
+        raise('ERROR!!!!!!!! Specify directories')
 
 
-def test_net(net, save_root, exp_name, input_type, dataset, iteration, num_classes, thresh=0.5 ):
-    """ Test a SSD network on an Action image database. """
-
-    val_data_loader = data.DataLoader(dataset, args.batch_size, num_workers=args.num_workers,
-                            shuffle=False, collate_fn=detection_collate, pin_memory=True)
-    image_ids = dataset.ids
-    save_ids = []
-    val_step = 250
-    num_images = len(dataset)
-    video_list = dataset.video_list
-    det_boxes = [[] for _ in range(len(CLASSES))]
-    gt_boxes = []
-    print_time = True
-    batch_iterator = None
-    count = 0
-    torch.cuda.synchronize()
-    ts = time.perf_counter()
-    num_batches = len(val_data_loader)
-    #det_file = save_root + 'cache/' + exp_name + '/detection-'+str(iteration).zfill(6)+'.pkl'
-    print('Number of images ', len(dataset),' number of batchs', num_batches)
-    frame_save_dir = '{}detections/LIN-{}-if{:02d}-bg{}-{:06d}/'.format(save_root, input_type, args.input_frames, args.use_bg, iteration)
-    softmax = torch.nn.Softmax().cuda()
-    for val_itr in range(len(val_data_loader)):
-        if not batch_iterator:
-            batch_iterator = iter(val_data_loader)
-
-        torch.cuda.synchronize()
-        t1 = time.perf_counter()
-
-        images, targets, img_indexs = next(batch_iterator)
-        batch_size = images.size(0)
-        height, width = images.size(2), images.size(3)
-
-        if args.cuda:
-            images = Variable(images.cuda(), volatile=True)
-        output = net(images)
-
-        loc_data = output[0]
-        conf_preds = output[1]
-        anchor_data = output[2][:loc_data.size(1), :]
-
-        if print_time and val_itr%val_step == 0:
-            torch.cuda.synchronize()
-            tf = time.perf_counter()
-            print('Forward Time {:0.3f}'.format(tf - t1))
-        for b in range(batch_size):
-            gt = targets[b].numpy()
-            gt[:, 0] *= width
-            gt[:, 2] *= width
-            gt[:, 1] *= height
-            gt[:, 3] *= height
-            gt_boxes.append(gt)
-            decoded_boxes = decode(loc_data[b].data, anchor_data.data, cfg['variance']).cpu()
-            conf_scores = softmax(conf_preds[b]).data.cpu().clone()
-            index = img_indexs[b]
-            annot_info = image_ids[index]
-
-            frame_num = annot_info[1]; video_id = annot_info[0]; videoname = video_list[video_id]
-            output_dir = frame_save_dir+videoname
-            if not os.path.isdir(output_dir):
-                os.makedirs(output_dir)
-
-            output_file_name = output_dir+'/{:05d}.mat'.format(int(frame_num))
-            save_ids.append(output_file_name)
-            sio.savemat(output_file_name, mdict={'scores':conf_scores.numpy(),'loc':decoded_boxes.numpy()})
-
-            for cl_ind in range(1, num_classes):
-                scores = conf_scores[:, cl_ind].squeeze()
-                c_mask = scores.gt(args.conf_thresh)  # greater than minmum threshold
-                scores = scores[c_mask].squeeze()
-                # print('scores size',scores.size())
-                if scores.dim() == 0:
-                    # print(len(''), ' dim ==0 ')
-                    det_boxes[cl_ind - 1].append(np.asarray([]))
-                    continue
-                l_mask = torch.nonzero(c_mask).squeeze()
-                #print('lmask',l_mask,torch.sum(c_mask))
-                #pdb.set_trace()
-                boxes = decoded_boxes.index_select(0, l_mask)
-                # idx of highest scoring and non-overlapping boxes per class
-                ids, counts = nms(boxes, scores, args.nms_thresh, args.topk)  # idsn - ids after nms
-                scores = scores[ids[:counts]].numpy()
-                boxes = boxes[ids[:counts]].numpy()
-                # print('boxes sahpe',boxes.shape)
-                boxes[:, 0] *= width
-                boxes[:, 2] *= width
-                boxes[:, 1] *= height
-                boxes[:, 3] *= height
-
-                for ik in range(boxes.shape[0]):
-                    boxes[ik, 0] = max(0, boxes[ik, 0])
-                    boxes[ik, 2] = min(width, boxes[ik, 2])
-                    boxes[ik, 1] = max(0, boxes[ik, 1])
-                    boxes[ik, 3] = min(height, boxes[ik, 3])
-
-                cls_dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=True)
-                det_boxes[cl_ind - 1].append(cls_dets)
-
-            count += 1
-        if val_itr%val_step == 0:
-            torch.cuda.synchronize()
-            te = time.perf_counter()
-            print('im_detect: {:d}/{:d} time taken {:0.3f}'.format(count, num_images, te - ts))
-            torch.cuda.synchronize()
-            ts = time.perf_counter()
-        if print_time and val_itr%val_step == 0:
-            torch.cuda.synchronize()
-            te = time.perf_counter()
-            print('NMS stuff Time {:0.3f}'.format(te - tf))
-    print('Evaluating detections for itration number ', iteration)
-
-    #Save detection after NMS along with GT
-    #with open(det_file, 'wb') as f:
-    #    pickle.dump([gt_boxes, det_boxes, save_ids], f, pickle.HIGHEST_PROTOCOL)
-
-    return evaluate_detections(gt_boxes, det_boxes, CLASSES, iou_thresh=thresh)
+## set random seeds and global settings
+np.random.seed(args.man_seed)
+torch.manual_seed(args.man_seed)
+torch.cuda.manual_seed_all(args.man_seed)
+torch.set_default_tensor_type('torch.FloatTensor')
 
 
 def main():
 
-    means = (104, 117, 123)  # only support voc now
+    args.eval_iters = [int(val) for val in args.eval_iters.split(',')]
+    # args.loss_reset_step = 10
+    args.log_step = 10
+    args.dataset = args.dataset.lower()
+    args.basenet = args.basenet.lower()
+    
+    args.bn = abs(args.bn) # 0 freeze or else use bn
+    if args.bn>0:
+        args.bn = 1 # update bn layer set the flag to 1
 
-    ## Define the experiment Name will used to same directory and ENV for visdom
-    ## Define the experiment Name will used to same directory and ENV for visdom
-    exp_name = 'LIN-SSD-bg{}-{}-{}-bs-{}-if-{}-{}-lr-{:05d}'.format(args.use_bg, args.dataset,
-                                                                         args.input_type, args.batch_size,
-                                                                         args.input_frames, args.basenet[:-14],
-                                                                         int(args.lr * 100000))
+    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, args.anchor_type, args.dataset,
+                                                          args.batch_size,
+                                                          args.basenet,
+                                                          int(args.lr * 100000),
+                                                          args.bn)
 
     args.save_root += args.dataset+'/'
-    args.data_root += args.dataset+'/'
+    args.save_root = args.save_root+'cache/'+args.exp_name+'/'
 
-    for iteration in [50000]:
-        log_file = open(args.save_root + 'cache/' + exp_name + "/testing-{:d}.log".format(iteration), "w", 1)
-        log_file.write(exp_name + '\n')
-        trained_model_path = args.save_root + 'cache/' + exp_name + '/ssd300_ucf24_' + repr(iteration) + '.pth'
-        log_file.write(trained_model_path+'\n')
-        # trained_model_path = '/mnt/sun-alpha/ss-workspace/CVPR2018_WORK/ssd.pytorch_exp/UCF24/guru_ssd_pipeline_weights/ssd300_ucf24_90000.pth'
-        num_classes = len(CLASSES) + 1  #7 +1 background
-        args.num_classes = num_classes
-        net = build_ssd(300, num_classes, args.input_frames)  # initialize SSD
+    # Should already be created during training time
+    if not os.path.isdir(args.save_root): # if save directory doesn't exist create it
+        os.makedirs(args.save_root)
 
+    source_dir = args.save_root+'/source/' # where to save the source
+    utils.copy_source(source_dir)
 
+    anchors = 'None'
+    with torch.no_grad():
+        if args.anchor_type == 'kmeans':
+            anchorbox = kanchorBoxes(input_dim=args.input_dim, dataset=args.dataset)
+        else:
+            anchorbox = anchorBox(args.anchor_type, input_dim=args.input_dim, dataset=args.dataset)
+        anchors = anchorbox.forward()
+        args.ar = anchorbox.ar
+    
+    args.num_anchors = anchors.size(0)
 
-        net.load_state_dict(torch.load(trained_model_path))
-        if args.ngpu > 1:
-            print('\n\n\nLets do dataparallel\n\n\n\n')
-            net = torch.nn.DataParallel(net)
+    if args.dataset == 'coco':
+        args.train_sets = ['train2017']
+        args.val_sets = ['val2017']
+    else:
+        args.train_sets = ['train2007', 'val2007', 'train2012', 'val2012']
+        args.val_sets = ['test2007']
 
-        if args.cuda:
-            net = net.cuda()
-            cudnn.benchmark = True
+    args.means =[0.485, 0.456, 0.406]
+    args.stds = [0.229, 0.224, 0.225]
+    val_dataset = Detection(args, train=False, image_sets=args.val_sets, 
+                            transform=BaseTransform(args.input_dim, args.means, args.stds), full_test=False)
+    print('Done Loading Dataset Validation Dataset :::>>>\n',val_dataset.print_str)
+    
+    args.num_classes = len(val_dataset.classes) + 1
+    args.classes = val_dataset.classes
+    
+    args.head_size = 256
 
+    net = build_fpn(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
+    net = net.cuda()
 
-        net.eval()
+    if args.ngpu>1:
+        print('\nLets do dataparallel\n')
+        net = torch.nn.DataParallel(net)
+    net.eval()
+
+    for iteration in args.eval_iters:
+        log_file = open("{:s}/testing-{:d}.log".format(args.save_root, iteration), "w", 1)
+        log_file.write(args.exp_name + '\n')
+        if len(args.model_path)<5:
+            args.model_path = args.save_root + '/model_' + repr(iteration) + '.pth'
+        log_file.write(args.model_path+'\n')
+    
+        net.load_state_dict(torch.load(args.model_path))
 
         print('Finished loading model %d !' % iteration)
         # Load dataset
-        dataset = ActionDetection(args, 'test', BaseTransform(args.ssd_dim, means), AnnotationTransform(),
-                                  full_test=True)
+        val_data_loader = data_utils.DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers,
+                                 shuffle=False, pin_memory=True, collate_fn=custum_collate)
+
         # evaluation
         torch.cuda.synchronize()
         tt0 = time.perf_counter()
         log_file.write('Testing net \n')
-        mAP, ap_all, ap_strs = test_net(net, args.save_root, exp_name, args.input_type, dataset, iteration, num_classes)
+        net.eval() # switch net to evaluation mode
+        mAP, ap_all, ap_strs , det_boxes = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
+
         for ap_str in ap_strs:
             print(ap_str)
-            log_file.write(ap_str + '\n')
-        ptr_str = '\nMEANAP:::=>' + str(mAP) + '\n'
+            log_file.write(ap_str+'\n')
+        ptr_str = '\nMEANAP:::=>'+str(mAP)+'\n'
         print(ptr_str)
         log_file.write(ptr_str)
 

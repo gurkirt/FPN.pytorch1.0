@@ -21,7 +21,6 @@
 """
 
 import os
-import sys
 import time
 import socket
 import getpass 
@@ -234,7 +233,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
         sw = SummaryWriter(log_dir=log_dir)
     log_file = open(args.save_root+'training.text{date:%m-%d-%Hx}.txt'.format(date=datetime.datetime.now()), 'w', 1)
     log_file.write(args.exp_name+'\n')
-    # log_file.write(sys.argv)
+
     for arg in vars(args):
         print(arg, getattr(args, arg))
         log_file.write(str(arg)+': '+str(getattr(args, arg))+'\n')
@@ -369,11 +368,11 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                 torch.cuda.synchronize()
                 tvs = time.perf_counter()
                 print('Saving state, iter:', iteration)
-                torch.save(net.state_dict(), args.save_root+'FPN_model_' +
+                torch.save(net.state_dict(), args.save_root+'model_' +
                            repr(iteration) + '.pth')
 
                 net.eval() # switch net to evaluation mode
-                mAP, ap_all, ap_strs = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
+                mAP, ap_all, ap_strs, _ = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
 
                 for ap_str in ap_strs:
                     print(ap_str)

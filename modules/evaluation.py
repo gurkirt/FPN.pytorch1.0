@@ -127,7 +127,7 @@ def evaluate_detections(gt_boxes, det_boxes, CLASSES=[], iou_thresh=0.5):
         ap_strs.append(ap_str)
 
     # print ('mean ap ', np.mean(ap_all))
-    return np.mean(ap_all), ap_all, ap_strs
+    return np.mean(ap_all), ap_all, ap_strs, det_boxes
 
 
 def save_detection_framewise(det_boxes, image_ids, iteration):
