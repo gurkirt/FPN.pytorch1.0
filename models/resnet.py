@@ -94,7 +94,8 @@ class ResNetFPN(nn.Module):
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
@@ -151,7 +152,7 @@ class ResNetFPN(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        # x = self.maxpool(x)
+        x = self.maxpool(x)
         # print('x0 DATA ', torch.sum(x.data))
         x = self.layer1(x)
         # print('x DATA ', torch.sum(x.data))
@@ -197,7 +198,7 @@ class ResNetFPN(nn.Module):
             else:
                 print('NAME IS NOT IN OWN STATE::>' + name)
 
-def resnetfpn(perms, name, seq_len=1):
+def resnetfpn(perms, name, seq_len=1, input_dim=600):
     num = int(name[6:])
     if num<50:
         return ResNetFPN(BasicBlock, perms, seq_len)

@@ -53,7 +53,7 @@ anchor_boxes_kmeaned['coco'] = np.asarray( [[0.0000, 0.0000, 0.0303, 0.0847],
 #                                             [0.0000, 0.0000, 0.7242, 0.4552]])
 
 feature_sizes = dict()
-feature_sizes['300'] = [75, 38, 19, 10, 5]
+feature_sizes['600'] = [75, 38, 19, 10, 5]
 
 class anchorBox(object):
     """
@@ -61,7 +61,7 @@ class anchorBox(object):
     feature map.
     
     """
-    def __init__(self, input_dim=300, dataset = 'coco', default_ratios= 3):
+    def __init__(self, input_dim=600, dataset = 'coco', default_ratios= 3):
         super(anchorBox, self).__init__()
         # self.type = cfg.name
         self.image_size = input_dim

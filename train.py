@@ -56,8 +56,8 @@ parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
 #  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
-# Input size of image onlye 300 is supprted at the moment 
-parser.add_argument('--input_dim', default=300, type=int, help='Input Size for SSD')
+# Input size of image only 600 is supprted at the moment 
+parser.add_argument('--input_dim', default=600, type=int, help='Input Size for SSD')
 #  data loading argumnets
 parser.add_argument('--batch_size', default=32, type=int, help='Batch size for training')
 parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')
@@ -115,7 +115,7 @@ if username == 'gurkirt':
         args.save_root = '/mnt/mars-gamma/'
         args.vis_port = 8097
     elif hostname in ['sun','jupiter']:
-        args.data_root = '/mnt/mercury-fast/datasets/'
+        args.data_root = '/mnt/mars-fast/datasets/'
         args.save_root = '/mnt/mars-gamma/'
         if hostname in ['sun']:
             args.vis_port = 8096
@@ -310,6 +310,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
             # forward
             torch.cuda.synchronize()
             data_time.update(time.perf_counter() - start)
+
+            # print(images.size(), anchors.size())
             reg_out, cls_out = net(images)
 
             optimizer.zero_grad()
@@ -343,7 +345,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
             batch_time.update(time.perf_counter() - start)
             start = time.perf_counter()
 
-            if iteration % args.log_step == 0 and iteration > 11:
+            if iteration % args.log_step == 0 and iteration > 200:
                 if args.visdom:
                     losses_list = [loc_losses.val, cls_losses.val, losses.val, loc_losses.avg, cls_losses.avg, losses.avg]
                     viz.line(X=torch.ones((1, 6)).cpu() * iteration,

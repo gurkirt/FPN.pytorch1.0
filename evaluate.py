@@ -45,8 +45,8 @@ parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
 #  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
-# Input size of image onlye 300 is supprted at the moment 
-parser.add_argument('--input_dim', default=300, type=int, help='Input Size for SSD')
+# Input size of image, only 600 is supprted at the moment 
+parser.add_argument('--input_dim', default6300, type=int, help='Input Size for SSD')
 #  data loading argumnets
 parser.add_argument('--batch_size', default=32, type=int, help='Batch size for training')
 parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')

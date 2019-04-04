@@ -20,7 +20,7 @@ from data.detectionDatasets import make_object_lists
 base_dir = '/home/gurkirt/datasets/'
 # base_dir = '/mnt/mercury-fast/datasets/'
 
-input_dim = 300
+input_dim = 600
 thresh = 0.5
 
 def main():
