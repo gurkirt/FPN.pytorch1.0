@@ -315,7 +315,7 @@ class RandomSampleCrop(object):
                 max_iou = float('inf')
 
             # max trails (50)
-            for _ in range(50):
+            for _ in range(20):
                 #current_image = image
 
                 w = random.uniform(0.3 * width, width)

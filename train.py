@@ -43,8 +43,6 @@ from data import Detection, BaseTransform, custum_collate
 from data.augmentations import Augmentation
 from models.fpn import build_fpn
 
-
-
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
@@ -59,9 +57,10 @@ parser.add_argument('--dataset', default='voc', help='pretrained base model')
 # Input size of image only 600 is supprted at the moment 
 parser.add_argument('--input_dim', default=600, type=int, help='Input Size for SSD')
 #  data loading argumnets
-parser.add_argument('--batch_size', default=32, type=int, help='Batch size for training')
+parser.add_argument('--batch_size', default=24, type=int, help='Batch size for training')
 parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')
 # optimiser hyperparameters
+parser.add_argument('--resume', default=0, type=int, help='Resume from given iterations')
 parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
@@ -227,6 +226,18 @@ def main():
 
 def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, val_dataset):
     
+    args.start_iteration = 0
+
+    if args.resume>100:
+        args.start_iteration = args.resume
+        args.iteration = args.start_iteration
+        for _ in range(args.iteration-1):
+            scheduler.step()
+        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, args.start_iteration)
+        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, args.start_iteration)
+        model.load_state_dict(torch.load(model_file_name))
+        optimizer.load_state_dict(torch.load(optimizer_file_name))
+        
     anchors = anchors.cuda(0, non_blocking=True)
     if args.tensorboard:
         log_dir = args.save_root+'tensorboard-{date:%m-%d-%Hx}.log'.format(date=datetime.datetime.now())
@@ -298,7 +309,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
 
     torch.cuda.synchronize()
     start = time.perf_counter()
-    iteration = 0
+    iteration = args.start_iteration
 
     while iteration <= args.max_iter:
         for i, (images, gts, _) in enumerate(train_data_loader):
@@ -370,9 +381,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                 torch.cuda.synchronize()
                 tvs = time.perf_counter()
                 print('Saving state, iter:', iteration)
-                torch.save(net.state_dict(), args.save_root+'model_' +
-                           repr(iteration) + '.pth')
-
+                torch.save(net.state_dict(), '{:s}/model_{:06d}.pth'.format(args.save_root, args.start_iteration))
+                torch.save(optimizer.state_dict(), '{:s}/optimizer_{:06d}.pth'.format(args.save_root, args.start_iteration))
                 net.eval() # switch net to evaluation mode
                 mAP, ap_all, ap_strs, _ = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
 
