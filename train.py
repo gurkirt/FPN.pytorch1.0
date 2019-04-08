@@ -53,14 +53,15 @@ parser = argparse.ArgumentParser(description='Training single stage FPN with OHE
 parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 # Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
-parser.add_argument('--shared_heads', default=0, type=int,help='pretrained base model')
+# if output heads are have shared features or not: 0 is no-shareing else sharining enabled
+parser.add_argument('--shared_heads', default=0, type=int,help='0 mean no shareding more than 0 means shareing')
 #  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
 # Input size of image only 600 is supprted at the moment 
 parser.add_argument('--input_dim', default=600, type=int, help='Input Size for SSD')
 #  data loading argumnets
 parser.add_argument('--batch_size', default=24, type=int, help='Batch size for training')
-parser.add_argument('--num_workers', '-j', default=4, type=int, help='Number of workers used in dataloading')
+parser.add_argument('--num_workers', '-j', default=8, type=int, help='Number of workers used in dataloading')
 # optimiser hyperparameters
 parser.add_argument('--resume', default=0, type=int, help='Resume from given iterations')
 parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
@@ -160,6 +161,10 @@ def main():
     args.bn = abs(args.bn) # 0 freeze or else use bn
     if args.bn>0:
         args.bn = 1 # update bn layer set the flag to 1
+    
+    args.shared_heads = abs(args.shared_heads) # 0 no sharing of feature else yes
+    if args.shared_heads>0:
+        args.shared_heads = 1
 
     args.exp_name = 'FPN{:d}-{:s}sh{:02d}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, 
                                                           args.anchor_type, 

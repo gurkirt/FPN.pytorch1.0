@@ -42,11 +42,7 @@ class FPN(nn.Module):
 
     def forward(self, x):
 
-        sources = self.base_net(x)
-        # features = list()
-        # for x in sources:
-        #     features.append(self.features(x))
-        features = sources
+        features = self.base_net(x)
         
         loc = list()
         conf = list()
@@ -60,19 +56,6 @@ class FPN(nn.Module):
         return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)
 
 
-    def make_features(self, head_size):
-        layers = []
-        for _ in range(2):
-            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
-            layers.append(nn.ReLU(True))
-        layers = nn.Sequential(*layers)
-        for m in layers.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, 0.01)
-            
-
-        return layers
 
     def make_head(self, head_size, out_planes):
         layers = []
