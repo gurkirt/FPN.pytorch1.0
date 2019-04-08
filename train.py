@@ -246,8 +246,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
         args.iteration = args.start_iteration
         for _ in range(args.iteration-1):
             scheduler.step()
-        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, 0)
-        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, 0)
+        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, start_iteration)
+        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, start_iteration)
         net.load_state_dict(torch.load(model_file_name))
         optimizer.load_state_dict(torch.load(optimizer_file_name))
         
