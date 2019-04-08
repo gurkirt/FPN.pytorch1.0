@@ -41,7 +41,8 @@ from modules.box_utils import decode, nms
 from modules import  AverageMeter
 from data import Detection, BaseTransform, custum_collate
 from data.augmentations import Augmentation
-from models.fpn import build_fpn
+from models.fpn import build_fpn_unshared
+from models.fpn_shared_heads import build_fpn_shared_heads
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -52,6 +53,7 @@ parser = argparse.ArgumentParser(description='Training single stage FPN with OHE
 parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 # Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
+parser.add_argument('--shared_heads', default=0, type=int,help='pretrained base model')
 #  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
 # Input size of image only 600 is supprted at the moment 
@@ -159,7 +161,10 @@ def main():
     if args.bn>0:
         args.bn = 1 # update bn layer set the flag to 1
 
-    args.exp_name = 'FPN{:d}-{:s}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, args.anchor_type, args.dataset,
+    args.exp_name = 'FPN{:d}-{:s}sh{:02d}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, 
+                                                          args.anchor_type, 
+                                                          args.shared_heads, 
+                                                          args.dataset,
                                                           args.batch_size,
                                                           args.basenet,
                                                           int(args.lr * 100000),
@@ -207,8 +212,11 @@ def main():
     args.classes = train_dataset.classes
     
     args.head_size = 256
+    if args.shared_heads>0:
+        net = build_fpn_shared_heads(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
+    else: 
+        net = build_fpn_unshared(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
     
-    net = build_fpn(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
     net = net.cuda()
     
     if args.ngpu>1:
@@ -233,9 +241,9 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
         args.iteration = args.start_iteration
         for _ in range(args.iteration-1):
             scheduler.step()
-        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, args.start_iteration)
-        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, args.start_iteration)
-        model.load_state_dict(torch.load(model_file_name))
+        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, 0)
+        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, 0)
+        net.load_state_dict(torch.load(model_file_name))
         optimizer.load_state_dict(torch.load(optimizer_file_name))
         
     anchors = anchors.cuda(0, non_blocking=True)
@@ -381,8 +389,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                 torch.cuda.synchronize()
                 tvs = time.perf_counter()
                 print('Saving state, iter:', iteration)
-                torch.save(net.state_dict(), '{:s}/model_{:06d}.pth'.format(args.save_root, args.start_iteration))
-                torch.save(optimizer.state_dict(), '{:s}/optimizer_{:06d}.pth'.format(args.save_root, args.start_iteration))
+                torch.save(net.state_dict(), '{:s}/model_{:06d}.pth'.format(args.save_root, iteration))
+                torch.save(optimizer.state_dict(), '{:s}/optimizer_{:06d}.pth'.format(args.save_root, iteration))
                 net.eval() # switch net to evaluation mode
                 mAP, ap_all, ap_strs, _ = validate(args, net, anchors, val_data_loader, val_dataset, iteration, iou_thresh=args.iou_thresh)
 

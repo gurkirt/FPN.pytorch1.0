@@ -60,20 +60,21 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 
 ## Performance
 
-Dataset | Backbone | Type | #Anchors | Batch-Size | lr | #iter | #GPUs| mAP@0.5 % | 
+Dataset | Backbone | Type | #Anchors | Batch-Size | lr | #iter | mAP@0.5 % | 
 |----| :---: | :---: | :---:  |  :---: | :---: | :---:  | :---:  | :---:|
-| VOC | ResNet50 | Pre-defined | 9 | 16 | 0.0002 | 70K  | 2 | 78.1 |
-| VOC | ResNet50 | Pre-defined | 3 | 16 | 0.0002 |  70K |  2 | 77.2 |
-| VOC | ResNet50 | Clustered | 3 | 16 | 0.0002 |  70K |  2 | 79.5 |
-| COCO | ResNet50 | Pre-defined | 9 | 32 | 0.0005 |  -- |  4 | training |
-| COCO | ResNet50 | Pre-defined | 3 | 32 | 0.0005 | -- | 4 | up-next |
-| COCO | ResNet50 | Clustered | 3 | 32 | 0.0005 | -- |  4 | up-next |
+| VOC | ResNet50 | Pre-defined | 9 | 16 | 0.0002 | 70K  | 78.1 |
+| VOC | ResNet50 | Pre-defined | 3 | 16 | 0.0002 |  70K | 77.2 |
+| VOC | ResNet50 | Clustered | 3 | 16 | 0.0002 |  70K | 79.5 |
+| COCO | ResNet50 | Clustered- SH | 3 | 24 | 0.0005 | -- | up-next |
+| COCO | ResNet50 | Pre-defined | 9 | 24 | 0.0005 |  150 | 46.1 |
+| COCO | ResNet50 | Clustered | 3 | 24 | 0.0005 | -- | training |
+| COCO | ResNet50 | Clustered- SH | 3 | 24 | 0.0005 | -- | training |
 
 #### Results of COCO are coming soon!
  
 ## Details
 - Max-pooling in resnet after first convolutional layer is not used
-- Input image size is `300`.
+- Input image size is `600`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
 - Learning rate dropped after 50K iterations in case of VOC
 - Learning rate dropped after 120K iterations in case of COCO
