@@ -1,16 +1,16 @@
 # FPN + OHEM 
 
 It is a code base for single stage Feature Pyramid Network (FPN) with online hard example mining (OHEM). 
-We implement shared heads, unlike in the paper.
+We implement shared heads, unlike in the paper. Shared heads help to reduce the memory consumption and improve the performance a little. 
 
-It is a pure [Pytorch 1.0](https://pytorch.org/) code, including preprocessing.
+It is a pure [Pytorch 1.0](https://pytorch.org/) code, including preprocessing of the input data. Annotations for both COCO and VOC dataset are provided in the same format. 
 
 ## Introduction 
 
 This repository contains a single stage version of FPN present on [RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf).
 Objective to reproduce Table 1 with ResNet50 with OHEM.
 
-## Archtecture 
+## Architecture 
 
 ![RetinaNet Structure](/figures/retinaNet.png)
 
@@ -61,7 +61,7 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 
 ## Performance
 
-There is a variation of standard network where feature of loclisation and classification heads are shared.
+There is a variation of the standard network where the features of localisation and classification heads are shared.
 
 Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
 |----|   :---: |     :---: | :---:  |  :---: |
@@ -78,18 +78,18 @@ Dataset | Backbone | Type | #Anchors | mAP@0.5 % |
 ## Details
 - Input image size is `600`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
-- Batch size is set to `24`, learning rate of `0.0005`
+- Batch size is set to `24`, the learning rate of `0.0005`.
 - VOC, number of iterations are `50K`, and learning rate is dropped after `40K` iterations
 - COCO, number of iterations are `150K`, and learning rate is dropped after `120K` iterations
 - VOC can be trained in 2 TitanX GPUs, 12GB each
-- COCO would need 3-4 GPUs, because number of classes are 80 hence loss function requires more memory
-- `SH` i.e. `Shared heads` helps solving memory problem up to a point, but we will still need 2 GPUs to train on VOC or COCO
+- COCO would need 3-4 GPUs because the number of classes is 80, hence loss function requires more memory
+- `SH`, i.e. `Shared heads` helps to solve memory problem up to a point, but we will still need 2 GPUs to train on VOC or COCO
 
 ## Installation
 - We used anaconda 3.7 as python distribution
 - You will need [Pytorch1.0](https://pytorch.org/get-started/locally/)
 - visdom and tensorboardX if you want to use the visualisation of loss and evaluation
-  -- if do want to use them set visdom/tensorboard flag equal to true while training 
+  -- if you want to use them set visdom/tensorboard flag equal to true while training 
   -- and configure the visdom port in arguments in  `train.py.`
 - OpenCV is needed as well, install it using `conda install opencv.`
 
