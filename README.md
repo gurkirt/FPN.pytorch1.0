@@ -63,8 +63,8 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 
 There is a variation of standard network where feature of loclisation and classification heads are shared.
 
-Dataset | Backbone | Type | #Anchors | #iter | mAP@0.5 % | 
-|----| :---: | :---: | :---:  |  :---: | :---: | :---:  | :---:  | :---:|
+Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
+|----|   :---: |     :---: | :---:  |  :---: |
 | VOC | ResNet50 | Pre-defined | 9  |  81.3 |
 | VOC | ResNet50 | Pre-defined | 3 |  up-next  |
 | VOC | ResNet50 | Clustered | 3 | up-next  |
