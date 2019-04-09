@@ -1,6 +1,7 @@
-# FPN + OHEM
+# FPN + OHEM 
 
 It is a code base for single stage Feature Pyramid Network (FPN) with online hard example mining (OHEM). 
+We implement shared heads, unlike in the paper.
 
 It is a pure [Pytorch 1.0](https://pytorch.org/) code, including preprocessing.
 
@@ -64,24 +65,25 @@ There is a variation of standard network where feature of loclisation and classi
 
 Dataset | Backbone | Type | #Anchors | #iter | mAP@0.5 % | 
 |----| :---: | :---: | :---:  |  :---: | :---: | :---:  | :---:  | :---:|
-| VOC | ResNet50 | Pre-defined | 9  | 70K  | 78.1 |
-| VOC | ResNet50 | Pre-defined | 3 |  70K | 77.2 |
-| VOC | ResNet50 | Clustered | 3 |  70K | 79.5 |
-| COCO | ResNet50 | Clustered- SH | 3 | -- | up-next |
-| COCO | ResNet50 | Pre-defined | 9 |  150 | 46.1 |
-| COCO | ResNet50 | Clustered | 3 | -- | training |
-| COCO | ResNet50 | Clustered- SH | 3 | -- | training |
+| VOC | ResNet50 | Pre-defined | 9  |  81.3 |
+| VOC | ResNet50 | Pre-defined | 3 |  up-next  |
+| VOC | ResNet50 | Clustered | 3 | up-next  |
+| VOC | ResNet50 | Clustered- SH | 3 | up-next |
+| COCO | ResNet50 | Pre-defined | 9 |  46.1 |
+| COCO | ResNet50 | Clustered | 3 | training |
+| COCO | ResNet50 | Clustered- SH | 3 | training |
 
 #### Results of COCO are coming soon!
  
 ## Details
 - Input image size is `600`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
-- Batch size of 24, learning rate of 0.0005
-- Learning rate dropped after 50K iterations in case of VOC
-- Learning rate dropped after 120K iterations in case of COCO
-
-
+- Batch size is set to `24`, learning rate of `0.0005`
+- VOC, number of iterations are `50K`, and learning rate is dropped after `40K` iterations
+- COCO, number of iterations are `150K`, and learning rate is dropped after `120K` iterations
+- VOC can be trained in 2 TitanX GPUs, 12GB each
+- COCO would need 3-4 GPUs, because number of classes are 80 hence loss function requires more memory
+- `SH` i.e. `Shared heads` helps solving memory problem up to a point, but we will still need 2 GPUs to train on VOC or COCO
 
 ## Installation
 - We used anaconda 3.7 as python distribution
@@ -115,8 +117,9 @@ You can take inspiration from data preparation scripts from `prep` directory, wh
 
 Also checkout [README](https://github.com/gurkirt/FPN.pytorch/tree/master/prep) in `prep` directory.
 
-If you want to use clustered anchors, then you can use from either of existing anchors or cluster the anchors yourself using `kmeans_for_anchors.py`.
+If you want to use clustered anchors, then you can either use existing anchors or cluster the anchors yourself using `kmeans_for_anchors.py`.
 
 ## References
 [RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf)
+[SSD paper for OHEM](https://arxiv.org/abs/1512.02325)
 [Our realtime-action-detection (ROAD) system implemetation](https://github.com/gurkirt/realtime-action-detection)
