@@ -77,7 +77,7 @@ Dataset | Backbone | Type | #Anchors | #iter | mAP@0.5 % |
 ## Details
 - Input image size is `600`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
-- Batch size of 24, learning rate of 
+- Batch size of 24, learning rate of 0.0005
 - Learning rate dropped after 50K iterations in case of VOC
 - Learning rate dropped after 120K iterations in case of COCO
 

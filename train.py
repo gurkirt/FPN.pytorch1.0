@@ -61,6 +61,7 @@ parser.add_argument('--dataset', default='voc', help='pretrained base model')
 parser.add_argument('--input_dim', default=600, type=int, help='Input Size for SSD')
 #  data loading argumnets
 parser.add_argument('--batch_size', default=24, type=int, help='Batch size for training')
+# Number of worker to load data in parllel
 parser.add_argument('--num_workers', '-j', default=8, type=int, help='Number of workers used in dataloading')
 # optimiser hyperparameters
 parser.add_argument('--resume', default=0, type=int, help='Resume from given iterations')
@@ -246,8 +247,8 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
         args.iteration = args.start_iteration
         for _ in range(args.iteration-1):
             scheduler.step()
-        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, start_iteration)
-        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, start_iteration)
+        model_file_name = '{:s}/model_{:06d}.pth'.format(args.save_root, args.start_iteration)
+        optimizer_file_name = '{:s}/optimizer_{:06d}.pth'.format(args.save_root, args.start_iteration)
         net.load_state_dict(torch.load(model_file_name))
         optimizer.load_state_dict(torch.load(optimizer_file_name))
         
@@ -294,7 +295,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
             opts=dict(
                 xlabel='Iteration',
                 ylabel='Loss',
-                title='Current Training Loss',
+                title='Training Loss',
                 legend=['REG', 'CLS', 'AVG', 'S-REG', ' S-CLS', ' S-AVG']
             )
         )
@@ -309,7 +310,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
             opts=dict(
                 xlabel='Iteration',
                 ylabel='AP %',
-                title='Current Validation APs and mAP',
+                title='Validation APs and mAP',
                 legend=legends
             )
         )
@@ -423,7 +424,6 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
                         win=val_lot,
                         update='append'
                             )
-                
                 net.train() 
                 # Switch net back to training mode
                 
