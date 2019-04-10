@@ -63,17 +63,17 @@ Dataset | Type | SR    | AR   | #Anchors/level | Total | Avergae IoU | Recall % 
 
 There is a variation of the standard network where the features of localisation and classification heads are shared.
 
-Dataset | Backbone | Type | #Anchors | mAP@0.5 % | 
-|----|   :---: |     :---: | :---:  |  :---: |
-| VOC | ResNet50 | Pre-defined | 9  |  81.3 |
-| VOC | ResNet50 | Pre-defined | 3 |  up-next  |
-| VOC | ResNet50 | Clustered | 3 | up-next  |
-| VOC | ResNet50 | Clustered- SH | 3 | up-next |
-| COCO | ResNet50 | Pre-defined | 9 |  46.1 |
-| COCO | ResNet50 | Clustered | 3 | training |
-| COCO | ResNet50 | Clustered- SH | 3 | training |
+Dataset | Backbone | Type | #Anchors | mAP@0.5 % | Download |
+|----|   :---: |     :---: | :---:  |  :---: | :---: | 
+| VOC | ResNet50  | Pre-defined   | 9 |  81.3 | [link](#)|
+| VOC | ResNet50  | Pre-defined   | 3 |  81.3  |  [link](#)|
+| VOC | ResNet50  | Clustered     | 3 |  training | [link](#)|
+| VOC | ResNet50  | Clustered- SH | 3 |  up-next | [link](#)|
+| COCO | ResNet50 | Pre-defined   | 9 |  46.1 | [link](#)|
+| COCO | ResNet50 | Clustered     | 3 |  47.7 | [link](#)|
+| COCO | ResNet50 | Clustered- SH | 3 |  training | [link](#)|
 
-#### Results of COCO are coming soon!
+#### Download links will be avaible soon, along with the code and model for that particular setting.
  
 ## Details
 - Input image size is `600`.
