@@ -120,6 +120,6 @@ Also checkout [README](https://github.com/gurkirt/FPN.pytorch/tree/master/prep) 
 If you want to use clustered anchors, then you can either use existing anchors or cluster the anchors yourself using `kmeans_for_anchors.py`.
 
 ## References
-[RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf)
-[SSD paper for OHEM](https://arxiv.org/abs/1512.02325)
-[Our realtime-action-detection (ROAD) system implemetation](https://github.com/gurkirt/realtime-action-detection)
+- [RetinaNet paper](https://arxiv.org/pdf/1708.02002.pdf)
+- [SSD paper for OHEM](https://arxiv.org/abs/1512.02325)
+- [Our realtime-action-detection (ROAD) system implemetation](https://github.com/gurkirt/realtime-action-detection)
