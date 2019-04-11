@@ -68,7 +68,7 @@ parser.add_argument('--resume', default=0, type=int, help='Resume from given ite
 parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
-parser.add_argument('--step_values', default='60000,90000', type=str, help='Chnage the lr @')
+parser.add_argument('--step_values', default='120000', type=str, help='Chnage the lr @')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
 
@@ -241,7 +241,6 @@ def main():
 def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, val_dataset):
     
     args.start_iteration = 0
-
     if args.resume>100:
         args.start_iteration = args.resume
         args.iteration = args.start_iteration
