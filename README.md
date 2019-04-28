@@ -68,7 +68,7 @@ Dataset | Backbone | Type | #Anchors | mAP@0.5 % | Download |
 | VOC | ResNet50  | Pre-defined   | 9 |  81.3 | [link](#) |
 | VOC | ResNet50  | Pre-defined   | 3 |  81.3  |  [link](#) |
 | VOC | ResNet50  | Clustered     | 3 |  82.8 | [link](#) |
-| VOC | ResNet50  | Clustered- SH | 3 |  training | [link](#) |
+| VOC | ResNet50  | Clustered- SH | 3 |  82.7 | [link](#) |
 | COCO | ResNet50 | Pre-defined   | 9 |  46.1 | [link](#) |
 | COCO | ResNet50 | Clustered     | 3 |  47.7 | [link](#) |
 | COCO | ResNet50 | Clustered- SH | 3 |  48.3 | [link](#) |
