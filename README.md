@@ -122,11 +122,8 @@ Results using `cocoapi` are slightly different than above table.
 
 ```
     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.285
-
     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.492
-    
     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.293
-    
     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.138
     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.318
     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.391
