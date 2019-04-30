@@ -32,18 +32,18 @@ class FPN(nn.Module):
 
     """
 
-    def __init__(self, base, ar, head_size, num_classes):
+    def __init__(self, base, ar, head_size, num_classes, bias_heads):
         super(FPN, self).__init__()
 
         self.num_classes = num_classes
         # TODO: implement __call__ in anchorBox
         self.ar = ar
         self.base_net = base
-        self.features_layers = self.make_features(head_size)
-        self.loc_heads = self.make_head(head_size, self.ar * 4)
-        self.conf_heads = self.make_head(head_size, self.ar * num_classes)
+        self.features_layers = self.make_features(head_size, bias_heads)
+        self.loc_heads = self.make_head(head_size, self.ar * 4, bias_heads)
+        self.conf_heads = self.make_head(head_size, self.ar * num_classes, bias_heads)
 
-    def forward(self, x):
+    def forward(self, x, get_features=False):
 
         sources = self.base_net(x)
         features = list()
@@ -58,14 +58,17 @@ class FPN(nn.Module):
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        
-        return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)
+        if get_features:
+
+            return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes), features
+        else:
+            return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)
 
 
-    def make_features(self, head_size):
+    def make_features(self, head_size, bias_heads):
         layers = []
         for _ in range(3):
-            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
+            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=bias_heads))
             layers.append(nn.ReLU(True))
         layers = nn.Sequential(*layers)
         for m in layers.modules():
@@ -75,11 +78,11 @@ class FPN(nn.Module):
 
         return layers
 
-    def make_head(self, head_size, out_planes):
+    def make_head(self, head_size, out_planes, bias_heads):
         layers = []
 
         for _ in range(1):
-            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
+            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=bias_heads))
             layers.append(nn.ReLU(True))
 
         layers.append(nn.Conv2d(head_size, out_planes, kernel_size=3, stride=1, padding=1))
@@ -92,6 +95,6 @@ class FPN(nn.Module):
 
         return layers
 
-def build_fpn_shared_heads(modelname, model_dir, ar=9, head_size = 256, num_classes=81):
+def build_fpn_shared_heads(modelname, model_dir, ar=9, head_size = 256, num_classes=81, bias_heads=False):
 
-    return FPN(base_models(modelname, model_dir), ar, head_size, num_classes)
+    return FPN(base_models(modelname, model_dir), ar, head_size, num_classes, bias_heads=bias_heads)

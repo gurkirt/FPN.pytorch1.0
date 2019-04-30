@@ -29,7 +29,7 @@ class FPN(nn.Module):
 
     """
 
-    def __init__(self, base, ar, head_size, num_classes):
+    def __init__(self, base, ar, head_size, num_classes, bias_heads):
         super(FPN, self).__init__()
 
         self.num_classes = num_classes
@@ -37,8 +37,8 @@ class FPN(nn.Module):
         self.ar = ar
         self.base_net = base
         # self.features = self.make_features(head_size)
-        self.loc = self.make_head(head_size, self.ar * 4)
-        self.conf = self.make_head(head_size, self.ar * num_classes)
+        self.loc = self.make_head(head_size, self.ar * 4, bias_heads)
+        self.conf = self.make_head(head_size, self.ar * num_classes, bias_heads)
 
     def forward(self, x):
 
@@ -57,11 +57,11 @@ class FPN(nn.Module):
 
 
 
-    def make_head(self, head_size, out_planes):
+    def make_head(self, head_size, out_planes, bias_heads):
         layers = []
 
         for _ in range(4):
-            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=False))
+            layers.append(nn.Conv2d(head_size, head_size, kernel_size=3, stride=1, padding=1, bias=bias_heads))
             layers.append(nn.ReLU(True))
 
         layers.append(nn.Conv2d(head_size, out_planes, kernel_size=3, stride=1, padding=1))
@@ -74,6 +74,6 @@ class FPN(nn.Module):
 
         return layers
 
-def build_fpn_unshared(modelname, model_dir, ar=9, head_size = 256, num_classes=81):
+def build_fpn_unshared(modelname, model_dir, ar=9, head_size = 256, num_classes=81, bias_heads=False):
 
-    return FPN(base_models(modelname, model_dir), ar, head_size, num_classes)
+    return FPN(base_models(modelname, model_dir), ar, head_size, num_classes, bias_heads)

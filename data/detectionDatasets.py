@@ -36,6 +36,9 @@ def make_object_lists(rootpath, subsets=['train2007']):
     names = []
     cls_list = db['classes']
     annots = db['annotations']
+    idlist = []
+    if 'ids' in db.keys():
+        idlist = db['ids']
     ni = 0
     nb = 0.0
     print_str = ''
@@ -55,7 +58,7 @@ def make_object_lists(rootpath, subsets=['train2007']):
 
     print_str = '\n\n*Num of images {:d} num of boxes {:d} avergae {:01f}\n\n'.format(ni, int(nb), nb/ni)
 
-    return cls_list, img_list, print_str
+    return cls_list, img_list, print_str, idlist
 
 
 class LoadImage(object):
@@ -81,7 +84,7 @@ class Detection(data.Dataset):
         self.anno_transform = anno_transform
         self.ids = list()
         self.image_loader = LoadImage()
-        self.classes, self.ids, self.print_str = make_object_lists(self.root, image_sets)
+        self.classes, self.ids, self.print_str, self.idlist = make_object_lists(self.root, image_sets)
     
     def __len__(self):
         return len(self.ids)
@@ -98,7 +101,8 @@ class Detection(data.Dataset):
         
         # t0 = time.perf_counter()
         img = self.image_loader(img_name)
-        
+        height, width, _ = img.shape
+        wh = [width, height]
         # print('t1', time.perf_counter()-t0)
         # t0 = time.perf_counter()
         
@@ -118,21 +122,22 @@ class Detection(data.Dataset):
         # if self.anno_transform:
         #     prior_labels, prior_gt_locations = self.anno_transform(boxes_, labels_, len(labels_))
         
-        return imgs, target, index
+        return imgs, target, index, wh
 
 def custum_collate(batch):
     targets = []
     images = []
     image_ids = []
-    
+    whs = []
     # fno = []
     # rgb_images, flow_images, aug_bxsl, prior_labels, prior_gt_locations, num_mt, index
     for sample in batch:
         images.append(sample[0])
         targets.append(torch.FloatTensor(sample[1]))
         image_ids.append(sample[2])
+        whs.append(sample[3])
     images = torch.stack(images, 0)
 
     # images, ground_truths, _ , _, num_mt, img_indexs
-    return images, targets, image_ids
+    return images, targets, image_ids, whs
 

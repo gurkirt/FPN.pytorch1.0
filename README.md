@@ -65,16 +65,18 @@ There is a variation of the standard network where the features of localisation 
 
 Dataset | Backbone | Type | #Anchors | mAP@0.5 % | Download |
 |----|   :---: |     :---: | :---:  |  :---: | :---: | 
-| VOC | ResNet50  | Pre-defined   | 9 |  81.3 | [link](#) |
-| VOC | ResNet50  | Pre-defined   | 3 |  81.3  |  [link](#) |
-| VOC | ResNet50  | Clustered     | 3 |  82.8 | [link](#) |
-| VOC | ResNet50  | Clustered- SH | 3 |  82.7 | [link](#) |
-| COCO | ResNet50 | Pre-defined   | 9 |  46.1 | [link](#) |
-| COCO | ResNet50 | Clustered     | 3 |  47.7 | [link](#) |
-| COCO | ResNet50 | Clustered- SH | 3 |  48.3 | [link](#) |
+| VOC | ResNet50  | Pre-defined   | 9 |  81.3 | [link](https://drive.google.com/open?id=1elTmzdSTZOgY5_zJR-F2xl9_S9lbOn0A) |
+| VOC | ResNet50  | Pre-defined   | 3 |  81.3  |  [link](https://drive.google.com/open?id=1VvneQZDxyw1ItbD1YbsWZ8kABzNy5hwc) |
+| VOC | ResNet50  | Clustered     | 3 |  82.8 | [link](https://drive.google.com/open?id=10nbmVDA6UeC0H0GpIkEl3Uox4GWuEm6d) |
+| VOC | ResNet50  | Clustered- SH | 3 |  82.7 | [link](https://drive.google.com/open?id=1mV62nGjtVq7ENTZ2-k9Y7hPD77scy5yw) |
+| COCO | ResNet50 | Pre-defined   | 9 |  46.1 | [link](https://drive.google.com/open?id=1SYshc0QfGm9mV4SYaCdZIKpchLwW9sZx) |
+| COCO | ResNet50 | Clustered     | 3 |  47.7 | [link](https://drive.google.com/open?id=17IaNr4xvhx9VBNuPhqGT85W-8IPyWam_) |
+| COCO | ResNet50 | Clustered- SH | 3 |  48.3 | [link](https://drive.google.com/open?id=1yKQ7nxtaEsRjPAsGNfXswM365c8LGLzx) |
 
-#### Download links will be avaible soon, along with the code and model for that particular setting.
- 
+Here is [GoggleDrive](https://drive.google.com/open?id=1DmRjEUUqWgI2kTw3XM83J9Esbb7rO4dm) for all the above in signle folder.
+
+Directory structure is similiar to one used in training setup. You can evaluate these models using `evaluate.py` and same hypermeter used in training, please read the arguments carefully.
+
 ## Details
 - Input image size is `600`.
 - Resulting feature map size on five pyramid levels is `[75, 38, 19, 10, 5]` 
@@ -99,7 +101,7 @@ Once you have pre-processed the dataset, then you are ready to train your networ
 
 To train run the following command. 
 
-`python train.py --dataset=voc --basenet=resnet50 --batch_size=16 --lr=0.0002 -j=8  --ngpu=2 --step_values=40000 --max_iter=50000`
+`python train.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=4  --ngpu=2 --step_values=120000 --max_iter=150000 --visdom=True --tensorboard=True --val_step=15000 --anchor_type=kmeans --shared_heads=1`
 
 It will use all the visible GPUs. You can append `CUDA_VISIBLE_DEVICES=gpuids-comma-separated` at the beginning of the above command to mask certain GPUs. We used two GPU machine to run these experiments.
 
@@ -110,7 +112,9 @@ Model is evaluated and saved after each `10K` iterations.
 
 mAP@0.5 is computed after every 10K iterations and at the end.
 
-Demo script and coco evaluation protocol will be updated in the coming weeks.
+Coco evaluation protocol is demonstraed  in `evaluate.py` 
+
+`python evaluate.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=2  --ngpu=2 --eval_iters=150000 --anchor_type=kmeans --shared_heads=1`
 
 ## Training on a custom dataset.
 You can take inspiration from data preparation scripts from `prep` directory, which we used to pre-process VOC and COCO dataset.

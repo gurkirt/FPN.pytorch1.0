@@ -55,6 +55,7 @@ parser.add_argument('--anchor_type', default='kmeans', help='kmeans or default')
 parser.add_argument('--basenet', default='resnet101', help='pretrained base model')
 # if output heads are have shared features or not: 0 is no-shareing else sharining enabled
 parser.add_argument('--shared_heads', default=0, type=int,help='0 mean no shareding more than 0 means shareing')
+parser.add_argument('--bias_heads', default=0, type=int,help='0 mean no bias in head layears')
 #  Name of the dataset only voc or coco are supported
 parser.add_argument('--dataset', default='voc', help='pretrained base model')
 # Input size of image only 600 is supprted at the moment 
@@ -216,12 +217,12 @@ def main():
     
     args.num_classes = len(train_dataset.classes) + 1
     args.classes = train_dataset.classes
-    
+    args.bias_heads = args.bias_heads>0
     args.head_size = 256
     if args.shared_heads>0:
-        net = build_fpn_shared_heads(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
+        net = build_fpn_shared_heads(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes, bias_heads=args.bias_heads)
     else: 
-        net = build_fpn_unshared(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes)
+        net = build_fpn_unshared(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes, bias_heads=args.bias_heads)
     
     net = net.cuda()
     
@@ -325,7 +326,7 @@ def train(args, net, anchors, optimizer, criterion, scheduler, train_dataset, va
     iteration = args.start_iteration
 
     while iteration <= args.max_iter:
-        for i, (images, gts, _) in enumerate(train_data_loader):
+        for i, (images, gts, _, _) in enumerate(train_data_loader):
             if iteration > args.max_iter:
                 break
             iteration += 1
@@ -453,13 +454,13 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
     ts = time.perf_counter()
     softmax = nn.Softmax(dim=2).cuda()
     with torch.no_grad():
-        for val_itr, (images, targets, img_indexs) in enumerate(val_data_loader):
+        for val_itr, (images, targets, img_indexs, wh) in enumerate(val_data_loader):
 
             torch.cuda.synchronize()
             t1 = time.perf_counter()
 
             batch_size = images.size(0)
-            height, width = images.size(2), images.size(3)
+            
 
             images = images.cuda(0, non_blocking=True)
             loc_data, conf_data = net(images)
@@ -471,6 +472,7 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
                 tf = time.perf_counter()
                 print('Forward Time {:0.3f}'.format(tf-t1))
             for b in range(batch_size):
+                width, height = wh[b][0], wh[b][1]
                 gt = targets[b].numpy()
                 gt[:,0] *= width
                 gt[:,2] *= width
@@ -496,7 +498,10 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
                     # idx of highest scoring and non-overlapping boxes per class
                     ids, counts = nms(boxes, scores, args.nms_thresh, args.topk)  # idsn - ids after nms
                     scores = scores[ids[:counts]].cpu().numpy()
+                    pick = min(scores.shape[0], 20)
+                    scores = scores[:pick]
                     boxes = boxes[ids[:counts]].cpu().numpy()
+                    boxes = boxes[:pick, :]
                     # print('boxes sahpe',boxes.shape)
                     boxes[:,0] *= width
                     boxes[:,2] *= width
@@ -505,10 +510,10 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
 
                     for ik in range(boxes.shape[0]):
                         boxes[ik, 0] = max(0, boxes[ik, 0])
-                        boxes[ik, 2] = min(width, boxes[ik, 2])
+                        boxes[ik, 2] = min(width-1, boxes[ik, 2])
                         boxes[ik, 1] = max(0, boxes[ik, 1])
-                        boxes[ik, 3] = min(height, boxes[ik, 3])
-
+                        boxes[ik, 3] = min(height-1, boxes[ik, 3])
+                    
                     cls_dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=True)
                     det_boxes[cl_ind-1].append(cls_dets)
                 count += 1
