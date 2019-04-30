@@ -118,7 +118,7 @@ Coco evaluation protocol is demonstraed  in `evaluate.py`
 
 ## COCO-API Result
 Here are results COCO using [COCO-API](https://github.com/cocodataset/cocoapi) using final model with shared heads and kmeans based anchors.
-Results using `cocoapi` are slightly different than above table.
+Results using `cocoapi` are slightly different than above table. You can compare these results with [Detectron From Facebook](https://github.com/facebookresearch/Detectron/blob/master/MODEL_ZOO.md)
 
 ```
     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.285
