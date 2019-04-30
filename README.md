@@ -116,6 +116,23 @@ Coco evaluation protocol is demonstraed  in `evaluate.py`
 
 `python evaluate.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=2  --ngpu=2 --eval_iters=150000 --anchor_type=kmeans --shared_heads=1`
 
+## COCO-API Result
+Here are results COCO using [COCO-API](https://github.com/cocodataset/cocoapi) using final model with shared heads and kmeans based anchors.
+Results using `cocoapi` are slightly different than above table.
+
+  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.285
+  Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.492
+  Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.293
+  Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.138
+  Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.318
+  Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.391
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.258
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.412
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.436
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.251
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.479
+  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.575
+
 ## Training on a custom dataset.
 You can take inspiration from data preparation scripts from `prep` directory, which we used to pre-process VOC and COCO dataset.
 
