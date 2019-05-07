@@ -35,7 +35,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from modules import utils
 from modules.anchor_box_kmeans import anchorBox as kanchorBoxes
 from modules.anchor_box_base import anchorBox
-from modules.multibox_loss import MultiBoxLoss
+from modules.multibox_loss import MultiBoxLoss, YOLOLoss
 from modules.evaluation import evaluate_detections
 from modules.box_utils import decode, nms
 from modules import  AverageMeter
@@ -66,10 +66,11 @@ parser.add_argument('--batch_size', default=24, type=int, help='Batch size for t
 parser.add_argument('--num_workers', '-j', default=8, type=int, help='Number of workers used in dataloading')
 # optimiser hyperparameters
 parser.add_argument('--resume', default=0, type=int, help='Resume from given iterations')
-parser.add_argument('--max_iter', default=150000, type=int, help='Number of training iterations')
+parser.add_argument('--max_iter', default=180000, type=int, help='Number of training iterations')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
-parser.add_argument('--step_values', default='120000', type=str, help='Chnage the lr @')
+parser.add_argument('--loss_type', default='mbox', type=str, help='loss_type')
+parser.add_argument('--step_values', default='120000,150000', type=str, help='Chnage the lr @')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
 
@@ -168,12 +169,13 @@ def main():
     if args.shared_heads>0:
         args.shared_heads = 1
 
-    args.exp_name = 'FPN{:d}-{:s}sh{:02d}-{:s}-bs{:02d}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, 
+    args.exp_name = 'FPN{:d}-{:s}sh{:02d}-{:s}-bs{:02d}-{:s}-{:s}-lr{:05d}-bn{:d}'.format(args.input_dim, 
                                                           args.anchor_type, 
                                                           args.shared_heads, 
                                                           args.dataset,
                                                           args.batch_size,
                                                           args.basenet,
+                                                          args.loss_type,
                                                           int(args.lr * 100000),
                                                           args.bn)
 
@@ -219,6 +221,7 @@ def main():
     args.classes = train_dataset.classes
     args.bias_heads = args.bias_heads>0
     args.head_size = 256
+    
     if args.shared_heads>0:
         net = build_fpn_shared_heads(args.basenet, args.model_dir, ar=args.ar, head_size=args.head_size, num_classes=args.num_classes, bias_heads=args.bias_heads)
     else: 
@@ -230,9 +233,15 @@ def main():
         print('\nLets do dataparallel\n')
         net = torch.nn.DataParallel(net)
 
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    criterion = MultiBoxLoss()
+    
+    if args.loss_type == 'mbox':
+        criterion = MultiBoxLoss()
+        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    elif args.loss_type == 'yolo':
+        criterion = YOLOLoss()
+        optimizer = optim.Adam(net.parameters())
+    else:
+        error('Define correct loss type')
     
     scheduler = MultiStepLR(optimizer, milestones=args.step_values, gamma=args.gamma)
 
@@ -498,7 +507,7 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
                     # idx of highest scoring and non-overlapping boxes per class
                     ids, counts = nms(boxes, scores, args.nms_thresh, args.topk)  # idsn - ids after nms
                     scores = scores[ids[:counts]].cpu().numpy()
-                    pick = min(scores.shape[0], 20)
+                    pick = min(scores.shape[0], 50)
                     scores = scores[:pick]
                     boxes = boxes[ids[:counts]].cpu().numpy()
                     boxes = boxes[:pick, :]

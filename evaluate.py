@@ -12,27 +12,6 @@
     
 """
 
-""" Adapted from:
-
-    Modification by: Gurkirt Singh
-    Modification started: 13th March 2019
-
-    Parts of this files are from many github repos
-    @longcw faster_rcnn_pytorch: https://github.com/longcw/faster_rcnn_pytorch
-    @rbgirshick py-faster-rcnn https://github.com/rbgirshick/py-faster-rcnn
-    Which was adopated by: Ellis Brown, Max deGroot
-    https://github.com/amdegroot/ssd.pytorch
-
-    Futher updates from 
-    https://github.com/gurkirt/realtime-action-detection
-
-    maybe more but that is where I got these from
-    Please don't remove above credits and give star to these repos
-
-    Licensed under The MIT License [see LICENSE for details]
-    
-"""
-
 import os
 import pdb
 import time, json

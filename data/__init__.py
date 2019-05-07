@@ -19,10 +19,10 @@ def base_transform_nimgs(images, size, mean, stds, seq_len=1):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) / 255.0
 
         res_imgs += [torch.from_numpy(img).permute(2, 0, 1)]
-
+    # pdb.set_trace()
     # res_imgs = np.asarray(res_imgs)
     return [F.normalize(img_tensor, mean, stds) for img_tensor in res_imgs]
-
+    
     # return res_imgs
 
 

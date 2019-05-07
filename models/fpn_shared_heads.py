@@ -58,8 +58,8 @@ class FPN(nn.Module):
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+        
         if get_features:
-
             return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes), features
         else:
             return loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes)

@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch
 from torch.nn.parameter import Parameter
 
+### Download weights from https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 def conv3x3(in_planes, out_planes, stride=1, padding=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -175,6 +176,8 @@ class ResNetFPN(nn.Module):
         return p3, p4, p5, p6, p7
 
     def load_my_state_dict(self, state_dict, seq_len=1):
+
+        ### Download weights from https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
         own_state = self.state_dict()
         # print(own_state.keys())
         for name, param in state_dict.items():
