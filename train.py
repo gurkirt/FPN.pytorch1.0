@@ -1,5 +1,6 @@
 
-""" Adapted from:
+""" 
+    Adapted from:
 
     Modification by: Gurkirt Singh
     Modification started: 13th March 2019
@@ -35,7 +36,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from modules import utils
 from modules.anchor_box_kmeans import anchorBox as kanchorBoxes
 from modules.anchor_box_base import anchorBox
-from modules.multibox_loss import MultiBoxLoss, YOLOLoss
+from modules.detection_loss import MultiBoxLoss, YOLOLoss, FocalLoss
 from modules.evaluation import evaluate_detections
 from modules.box_utils import decode, nms
 from modules import  AverageMeter
@@ -239,6 +240,9 @@ def main():
         optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     elif args.loss_type == 'yolo':
         criterion = YOLOLoss()
+        optimizer = optim.Adam(net.parameters())
+    elif args.loss_type == 'yolo':
+        criterion = FocalLoss()
         optimizer = optim.Adam(net.parameters())
     else:
         error('Define correct loss type')
@@ -461,7 +465,9 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
     count = 0
     torch.cuda.synchronize()
     ts = time.perf_counter()
-    softmax = nn.Softmax(dim=2).cuda()
+    activation = nn.Softmax(dim=2).cuda()
+    if args.loss_type == 'yolo':
+        activation = nn.Sigmoid().cuda()
     with torch.no_grad():
         for val_itr, (images, targets, img_indexs, wh) in enumerate(val_data_loader):
 
@@ -474,7 +480,7 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
             images = images.cuda(0, non_blocking=True)
             loc_data, conf_data = net(images)
 
-            conf_scores_all = softmax(conf_data).clone()
+            conf_scores_all = activation(conf_data).clone()
 
             if print_time and val_itr%val_step == 0:
                 torch.cuda.synchronize()
@@ -494,6 +500,8 @@ def validate(args, net, anchors,  val_data_loader, val_dataset, iteration_num, i
                 for cl_ind in range(1, num_classes):
                     # pdb.set_trace()
                     scores = conf_scores[:, cl_ind].squeeze()
+                    if args.loss_type == 'yolo':
+                        scores = conf_scores[:, cl_ind].squeeze() * conf_scores[:, 0].squeeze()
                     c_mask = scores.gt(args.conf_thresh)  # greater than minmum threshold
                     scores = scores[c_mask].squeeze()
                     # print('scores size',scores.size())

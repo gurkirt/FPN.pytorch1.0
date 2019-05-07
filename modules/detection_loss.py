@@ -8,6 +8,7 @@ Credits:: https://github.com/amdegroot/ssd.pytorch
 & https://github.com/qfgaohao/pytorch-ssd/blob/master/vision/nn/multibox_loss.py
 
 '''
+
 class MultiBoxLoss(nn.Module):
     def __init__(self, neg_pos_ratio=3):
         """Implement SSD Multibox Loss.
@@ -19,6 +20,7 @@ class MultiBoxLoss(nn.Module):
 
     def forward(self, confidence, predicted_locations, gts, anchors):
         # cls_out, reg_out, anchor_gt_labels, anchor_gt_locations
+        
         """
 
 
@@ -136,3 +138,72 @@ class YOLOLoss(nn.Module):
         binary_loss = binary_loss_pos*self.pos_weight + binary_loss_neg*self.neg_weight 
 
         return smooth_l1_loss, classification_loss + binary_loss
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0):
+        """Implement SSD Multibox Loss.
+        Basically, Multibox loss combines classification loss
+         and Smooth L1 regression loss.
+        """
+        super(FocalLoss, self).__init__()
+        self.bce_loss = nn.BCELoss(reduction='sum').cuda()
+        self.alpha = 0.25
+        self.gamma = 2.0
+
+
+    def forward(self, confidence, predicted_locations, gts, anchors):
+        # cls_out, reg_out, anchor_gt_labels, anchor_gt_locations
+        """
+
+        Compute classification loss and smooth l1 loss.
+        Args:
+            confidence (batch_size, num_anchors, num_classes): class predictions.
+            locations (batch_size, num_anchors, 4*seq_len): predicted locations.
+            labels (batch_size, num_anchors): real labels of all the anchors.
+            boxes (batch_size, num_anchors, 4*seq_len): real boxes corresponding all the anchors.
+
+        """
+        
+        gt_locations = []
+        labels = []
+        with torch.no_grad():
+            # torch.cuda.synchronize()
+            # t0 = time.perf_counter()
+            for b in range(len(gts)):
+                gt_boxes = gts[b][:,:4]
+                gt_labels = gts[b][:,4]
+                gt_labels = gt_labels.type(torch.cuda.LongTensor)
+
+                conf, loc = box_utils.match_anchors(gt_boxes, gt_labels, anchors)
+
+                labels.append(conf)
+                gt_locations.append(loc)
+            gt_locations = torch.stack(gt_locations, 0)
+            labels = torch.stack(labels, 0)
+        
+        # pdb.set_trace()
+        pos_mask = labels > 0
+        predicted_locations = predicted_locations[pos_mask, :].reshape(-1, 4)
+        gt_locations = gt_locations[pos_mask, :].reshape(-1, 4)
+        num_pos = float(pos_mask.sum())
+        smooth_l1_loss = F.smooth_l1_loss(predicted_locations, gt_locations, reduction='sum')/num_pos
+        
+        ## Compute classification loss
+        confidence = torch.sigmoid(confidence)
+        cls_conf = confidence[:,:,1:]
+        # binary_preds = confidence[:,:,0] # not needed in focal loss
+        num_classes = cls_conf.size(2)
+        cls_conf = cls_conf.view(-1, num_classes)
+
+        conf_labels = labels[pos_mask]-1
+        y_onehot = cls_conf.new_zeros(conf_labels.size(0), num_classes)
+        y_onehot[range(y_onehot.shape[0]), conf_labels] = 1.0
+
+        alpha_factor = self.alpha * y_onehot + (1.0 - self.alpha) * (1.0 - y_onehot)
+        focal_weight = 1.0 -cls_conf * y_onehot + cls_conf * (1.0 - y_onehot)
+        weight = alpha_factor * focal_weight ** self.gamma
+        classification_loss = self.bce_loss(cls_conf, y_onehot, weight=weight)/num_pos
+
+
+        return smooth_l1_loss, classification_loss
