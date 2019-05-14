@@ -140,17 +140,17 @@ Results using `cocoapi` are slightly different than above table. You can compare
 ```
 
 ## Demo
-To run demo, you will need to specify the path of pretrained model (`model_path`).
-Here is an example to run it.
+To run the demo, we will need to specify the path of the pretrained model (`model_path`).
+Here is an example of running it.
 
 ```
-python demo.py --model_path=<path to the pretraeind model>
+python demo.py --model_path=<path to the pretrained model>
 ```
-You may change the detection threshold and other parameters, please see the argument of the file. 
+We may change the detection threshold and other parameters, please see the argument of the file. 
 
-There are some demo samples in `demo_data\samples\` which are used in above script and results are saved in `demo_data\outputs\`.
+There are some demo samples in `demo_data\samples\` which are used in the above script and results are saved in `demo_data\outputs\`.
 
-Here are some generated results looks like.
+Here are some generated results looks like followings
 
 ![Dog](/demo_data/outputs/dog.jpg)
 
@@ -159,12 +159,12 @@ Here are some generated results looks like.
 ## Feature extraction
 Feature extraction feclity is provided in `extract_features.py`.
 
-You can run is similar to `demo.py`. Specify path to pretrained model (`model_path`), `samples_path`, and `save_path`.
-By default samples path and save path are point to demo_data. It will compute features for top `10` objects in all `.jpg` images from  `samples_path` directory.
+You can run is similar to `demo.py`. Specify the path to pretrained model (`model_path`), `samples_path`, and `save_path`.
+By default samples path and save path is pointing to demo_data. It will compute features for top `10` objects in all `.jpg` images from  `samples_path` directory.
 
-You may change number of nodes (top 10 atm) and other parameters, please see the argument of the file.  
+We may change the number of nodes (top 10 atm) and other parameters, please see the argument of the file.  
 
-Here is an example to run it.
+Here is an example of running it.
 
 ```
 python extract_features.py --model_path=<path to the pretraeind model>
