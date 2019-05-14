@@ -54,16 +54,14 @@ parser.add_argument('--input_dim', default=600, type=int, help='Input Size for S
 # Evaluation hyperparameters
 parser.add_argument('--conf_thresh', default=0.0001, type=float, help='Confidence threshold for evaluation')
 parser.add_argument('--nms_thresh', default=0.6, type=float, help='NMS threshold')
-parser.add_argument('--num_nodes', default=50, type=int, help='manualseed for reproduction')
-parser.add_argument('--topk', default=200, type=int, help='topk for evaluation')
-# Program arguments
-parser.add_argument('--start', default=0, type=int, help='topk for evaluation')
-parser.add_argument('--end', default=200, type=int, help='topk for evaluation')
+parser.add_argument('--num_nodes', default=10, type=int, help='manualseed for reproduction')
+parser.add_argument('--topk', default=20, type=int, help='topk for evaluation')
 
 parser.add_argument('--ngpu', default=2, type=int, help='If  more than then use all visible GPUs by default only one GPU used ') 
 # Use CUDA_VISIBLE_DEVICES=0,1,4,6 to selct GPUs to use
-parser.add_argument('--model_path', default='/home/gurkirt/cache/coco/cache/FPN600-kmeanssh01-coco-bs24-resnet50-lr00050-bn0/model_150000.pth', help='Location to model weights') # /mnt/mars-fast/datasets/
-parser.add_argument('--base_dir', default='/home/gurkirt/datasets/vidvrd/', help='Location to save checkpoint models') # /mnt/sun-gamma/datasets/
+parser.add_argument('--model_path', default='/mnt/mars-gamma/coco/cache/FPN600-kmeanssh01-coco-bs24-resnet50-lr00050-bn0/model_210000.pth', help='Location to model weights') # /mnt/mars-fast/datasets/
+parser.add_argument('--samples_path', default='demo_data/samples/', help='Location image samples') # /mnt/sun-gamma/datasets/
+parser.add_argument('--save_path', default='demo_data/features/', help='Location where outputs would be stored') # /mnt/sun-gamma/datasets/
 
 ## Parse arguments
 args = parser.parse_args()
@@ -72,6 +70,15 @@ torch.set_default_tensor_type('torch.FloatTensor')
 
 
 def main(allimages):
+
+
+
+    if not os.path.isdir(args.save_path):
+                    os.mkdir(args.save_path)
+    log_file = open("{:s}extracting.log".format(args.save_path), "w", 1)
+    # log_file.write(args.exp_name + '\n')
+    log_file.write(args.model_path+'\n')
+
     anchors = 'None'
     with torch.no_grad():
         if args.anchor_type == 'kmeans':
@@ -106,9 +113,6 @@ def main(allimages):
     feature_size = [75, 38, 19, 10, 5]
     kd = 3
     args.kd = kd
-    log_file = open("{:s}/extracting_s{:d}_e{:d}.log".format(args.base_dir, args.start, args.end), "w", 1)
-    # log_file.write(args.exp_name + '\n')
-    log_file.write(args.model_path+'\n')
     
     with torch.no_grad():
         flatten_layers = nn.ModuleList([Spatialflatten(feature_size[0]**2,  kd=kd), 
@@ -131,49 +135,44 @@ def main(allimages):
         empty_score = torch.zeros(1,args.num_classes).cuda()
         torch.cuda.synchronize()
         t0 = time.perf_counter()
-        print_num = 10
+        print_num = 1
         num_all_images = len(allimages)
-        for idx, info in enumerate(allimages):
-            save_path = info[1]
-            save_filename = save_path + info[2][:-4] + '.pth'
+        for idx, image_name in enumerate(img_names):
+            print(args.samples_path, image_name)
+
+            save_filename = args.save_path+image_name+ '.pth'
             if not os.path.isfile(save_filename): # only compute features for images for which feature are not computed yet
-                path_img = info[0] + info[2]
-                img = np.asarray([cv2.imread(path_img)])
+                img = np.asarray([cv2.imread(args.samples_path+image_name)])
+                # print(img.shape)
                 images, _ , _ = transform(img, [], [])
                 images = torch.stack(images, 0)
     
                 node_features, boxes, cls_scores, conf_scores = extract_feat(args, images, net, softmax, flatten_layers, anchors, args.num_nodes, last_id, empty_box, empty_score)
                 
-                if not os.path.isdir(save_path):
-                    os.mkdir(save_path)
 
                 if idx % print_num == 0:
                     torch.cuda.synchronize()
                     t1 = time.perf_counter()
-                    pt_str = 'Done [{:03d}/{:d}] times taken for {:d} images is {:0.1f}'.format(idx, num_all_images, print_num, t1-t0)
+                    pt_str = 'Done [{:03d}/{:d}] times taken for {:d} images is {:0.2f}'.format(idx, num_all_images, print_num, t1-t0)
                     log_file.write(pt_str+'\n')
                     print(pt_str)
                     t0 = t1
 
                 fboxes = boxes.cpu().squeeze(0)
-                fscores = conf_scores.cpu().view(-1, 1)
-                frame_feats = torch.cat((fscores, fboxes), 1)
-                frame_feats = torch.cat((frame_feats, cls_scores.cpu().squeeze(0)), 1)
-                frame_feats = torch.cat((frame_feats, node_features.cpu().squeeze(0)), 1)
+                fscores = conf_scores.cpu().view(-1, 1) # append objectness score
+                frame_feats = torch.cat((fscores, fboxes), 1) # append boxes
+                frame_feats = torch.cat((frame_feats, cls_scores.cpu().squeeze(0)), 1) # inverse objectnes and clssification
+                frame_feats = torch.cat((frame_feats, node_features.cpu().squeeze(0)), 1) # features
                 frame_feats = frame_feats.type(torch.FloatTensor)
 
-                # print(frame_feats.size(), type(frame_feats))
-                torch.save(frame_feats, save_filename)
-
-                # torch.save({'node_features':node_features.cpu(), 'boxes':boxes.cpu(), 'cls_scores':cls_scores, 'conf_scores':conf_scores}, save_filename)
-                # print(save_filename)
+                torch.save(frame_feats, save_filename) # Stores objectness score + boxes + inverse objectnes and clssification + features
 
 def extract_feat(args, images, net, softmax, flatten_layers, anchors, num_nodes, last_id, empty_box, empty_score):
 
     
     images = images.cuda(0, non_blocking=True)
-    
-    loc_data, conf_data, features = net(images, get_features=True)
+    print(images.size())
+    loc_data, conf_data, features = net(x=images, get_features=True)
     
     conf_scores_all = softmax(conf_data)
     flattened_features = list()
@@ -269,37 +268,6 @@ def apply_nms(boxes, scores, sf_conf, num_nodes, conf_thresh, nms_thresh):
 
 if __name__ == '__main__':
 
-    allimages = []
-    allcount = 0
-    annots = dict()
-
-    downloaded = os.listdir(args.base_dir+'rgb-images/')
-    downloaded = reversed(sorted(downloaded))
-    # downloaded = downloaded[args.start:args.end]
-    # print('number of videos are', len(downloaded))
-    for itr, vid in enumerate(downloaded):
-        viddir = args.base_dir + 'rgb-images/' + vid + '/'
-        images = os.listdir(viddir)
-        save_dir = args.base_dir + 'features_new/' + vid + '/'
-        name = vid.split('_')[1] 
-        subset = 'train'
-        annot_file = args.base_dir + subset +'/'+ vid + '.json'
-        if not os.path.isfile(annot_file):
-            subset = 'test'
-            annot_file = args.base_dir + subset +'/'+ vid + '.json'
-
-        with open(annot_file, 'r') as f:
-            annos = json.load(f)
-        # pdb.set_trace()
-        gt_num_images = annos['frame_count']
-        num_images = len(images)
-        ptstr = vid + ' has ' +  str(num_images) + 'images and gt has ' + str(gt_num_images)
-        print(ptstr)
-        assert gt_num_images == num_images, ptstr
-
-        for d in sorted(images):
-            if d.endswith('.jpg'):
-                allimages.append([viddir, save_dir, d])
-
-    print('Total number images to be used for feature extraction ', len(allimages))
-    main(allimages)
+    img_names = os.listdir(args.samples_path)
+    img_names = [img for img in img_names if img.endswith('.jpg')]
+    main(img_names)

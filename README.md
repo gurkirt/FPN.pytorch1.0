@@ -101,7 +101,9 @@ Once you have pre-processed the dataset, then you are ready to train your networ
 
 To train run the following command. 
 
-`python train.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=4  --ngpu=2 --step_values=120000 --max_iter=150000 --visdom=True --tensorboard=True --val_step=15000 --anchor_type=kmeans --shared_heads=1`
+```
+python train.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=4  --ngpu=2 --step_values=120000 --max_iter=150000 --visdom=True --tensorboard=True --val_step=15000 --anchor_type=kmeans --shared_heads=1
+```
 
 It will use all the visible GPUs. You can append `CUDA_VISIBLE_DEVICES=gpuids-comma-separated` at the beginning of the above command to mask certain GPUs. We used two GPU machine to run these experiments.
 
@@ -114,7 +116,9 @@ mAP@0.5 is computed after every 10K iterations and at the end.
 
 Coco evaluation protocol is demonstraed  in `evaluate.py` 
 
-`python evaluate.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=2  --ngpu=2 --eval_iters=150000 --anchor_type=kmeans --shared_heads=1`
+```
+python evaluate.py --dataset=coco --basenet=resnet50 --batch_size=24 --lr=0.0005 -j=2  --ngpu=2 --eval_iters=150000 --anchor_type=kmeans --shared_heads=1
+```
 
 ## COCO-API Result
 Here are results COCO using [COCO-API](https://github.com/cocodataset/cocoapi) using final model with shared heads and kmeans based anchors.
@@ -133,6 +137,37 @@ Results using `cocoapi` are slightly different than above table. You can compare
     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.251
     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.479
     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.575
+```
+
+## Demo
+To run demo, you will need to specify the path of pretrained model (`model_path`).
+Here is an example to run it.
+
+```
+python demo.py --model_path=<path to the pretraeind model>
+```
+You may change the detection threshold and other parameters, please see the argument of the file. 
+
+There are some demo samples in `demo_data\samples\` which are used in above script and results are saved in `demo_data\outputs\`.
+
+Here are some generated results looks like.
+
+![Dog](/demo_data/outputs/dog.jpg)
+
+![Street](/demo_data/outputs/street.jpg)
+
+## Feature extraction
+Feature extraction feclity is provided in `extract_features.py`.
+
+You can run is similar to `demo.py`. Specify path to pretrained model (`model_path`), `samples_path`, and `save_path`.
+By default samples path and save path are point to demo_data. It will compute features for top `10` objects in all `.jpg` images from  `samples_path` directory.
+
+You may change number of nodes (top 10 atm) and other parameters, please see the argument of the file.  
+
+Here is an example to run it.
+
+```
+python extract_features.py --model_path=<path to the pretraeind model>
 ```
 
 ## Training on a custom dataset.
