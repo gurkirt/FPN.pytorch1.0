@@ -1,5 +1,5 @@
 # FPN + OHEM 
-
+## **NEW** Please go [RetinaNet repo](https://github.com/gurkirt/RetinaNet.pytorch.1.x) to reproduce RetinaNet in pytorch 1.x.
 It is a code base for single stage Feature Pyramid Network (FPN) with online hard example mining (OHEM). 
 We implement shared heads, unlike in the paper. Shared heads help to reduce the memory consumption and improve the performance a little. 
 
